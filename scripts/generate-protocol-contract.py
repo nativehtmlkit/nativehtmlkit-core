@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """Generate the protocol v1 method/op matrix and JSON Schemas from the Rust host source.
 
-The Rust serde types are the authority. This script parses the request structs and the
-`DocumentCommand` enum (field names, types, `#[serde(default)]`, `deny_unknown_fields`) and
-emits draft 2020-12 schemas plus a machine-readable method matrix. Behavior that the type
-system cannot express (results, error codes, lifecycle) is locked separately by the golden
-runtime conformance test `crates/nativehtmlkit-host/tests/protocol_conformance.rs`.
+The Rust serde types are the authority for parameters. This script parses the request structs
+and the `DocumentCommand` enum (field names, types, `#[serde(default)]`, `deny_unknown_fields`)
+and emits draft 2020-12 schemas plus a machine-readable method matrix.
+
+What is *not* parsed from Rust: the client-method -> param-type table (`CLIENT_METHODS`), the
+host->client requests and notifications (`HOST_REQUESTS`, `HOST_NOTIFICATIONS`) are maintained
+by hand below. The client-method table is cross-checked on every run: the method string
+literals of the dispatch `match method { ... }` arms in `requests.rs`, `documents.rs` and
+`bitmap.rs` (plus the special-cased `host.hello` / `app.activate` in `host/mod.rs`) must equal
+`CLIENT_METHODS` / `SECONDARY_METHODS`, otherwise the script fails. Host->client messages are
+not cross-checked. Behavior that the type system cannot express (results, error codes,
+lifecycle) is locked separately by the golden runtime conformance test
+`crates/nativehtmlkit-host/tests/protocol_conformance.rs`.
 
 Usage: python3 scripts/generate-protocol-contract.py [--check]
   --check  fail if the committed files differ from freshly generated output.
@@ -29,8 +37,9 @@ SOURCES = {
     "commands": HOST / "host/document_commands.rs",
 }
 
-# Client -> host methods and the serde type each handler decodes (verified against the
-# dispatch code; `None` means the handler does not decode params, so any object is accepted).
+# Client -> host methods and the serde type each handler decodes (hand-maintained; the method
+# names are checked against the dispatch arms by `check_dispatch_arms`; `None` means the
+# handler does not decode params, so any object is accepted).
 CLIENT_METHODS = {
     "host.hello": ("handshake", "hand-validated: token (string), protocol_version (1); other members ignored"),
     "host.capabilities": (None, None),
@@ -241,9 +250,75 @@ def parse_tagged_enum(text: str, name: str, nested: dict) -> dict[str, dict]:
     return variants
 
 
+def _top_level_text(body: str) -> str:
+    """The characters of `body` at brace depth 0, skipping string and char literals."""
+    out, depth, i = [], 0, 0
+    while i < len(body):
+        ch = body[i]
+        if ch == '"':
+            j = i + 1
+            while j < len(body) and body[j] != '"':
+                j += 2 if body[j] == "\\" else 1
+            if depth == 0:
+                out.append(body[i : j + 1])
+            i = j + 1
+            continue
+        m = re.match(r"'(\\.|[^\\'])'", body[i:])
+        if m:
+            i += m.end()
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+        elif depth == 0:
+            out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def match_arms(text: str, fn_regex: str) -> set[str]:
+    """Method string literals of the top-level arms of the first `match method {` in a fn."""
+    fn_body = block(text, fn_regex)
+    arms_body = block(fn_body, r"match\s+method\s*\{")
+    arms: set[str] = set()
+    for m in re.finditer(r'((?:"[^"]+"\s*\|\s*)*"[^"]+")\s*=>', _top_level_text(arms_body)):
+        arms.update(re.findall(r'"([^"]+)"', m.group(1)))
+    if not arms:
+        raise SystemExit(f"source changed: no dispatch arms found for {fn_regex!r}")
+    return arms
+
+
+def check_dispatch_arms(src: dict[str, str]) -> None:
+    """Fail when the hand-written CLIENT_METHODS and the host's dispatch arms diverge."""
+    main = match_arms(src["requests"], r"fn\s+dispatch\s*\(")
+    docs = match_arms(src["documents"], r"fn\s+dispatch_document\s*\(")
+    bitmaps = match_arms(src["bitmap"], r"fn\s+dispatch_bitmap\s*\(")
+    problems = []
+    # requests.rs delegates document.* / bitmap.* arms; the delegates must handle exactly those.
+    for name, arms, prefix in (("documents.rs", docs, "document."), ("bitmap.rs", bitmaps, "bitmap.")):
+        delegated = {m for m in main if m.startswith(prefix)}
+        if arms != delegated:
+            problems.append(f"{name} arms {sorted(arms)} != requests.rs delegated {sorted(delegated)}")
+    hub = strip_comments((HOST / "host/mod.rs").read_text(encoding="utf-8"))
+    special = {m for m in ("host.hello", "app.activate") if f'request.method == "{m}"' in hub}
+    dispatched = main | docs | bitmaps | (special & {"host.hello"})
+    missing = sorted(dispatched - set(CLIENT_METHODS))
+    extra = sorted(set(CLIENT_METHODS) - dispatched)
+    if missing:
+        problems.append(f"dispatch arms not in CLIENT_METHODS: {missing}")
+    if extra:
+        problems.append(f"CLIENT_METHODS without a dispatch arm: {extra}")
+    if set(SECONDARY_METHODS) - special:
+        problems.append(f"SECONDARY_METHODS not special-cased in host/mod.rs: {sorted(set(SECONDARY_METHODS) - special)}")
+    if problems:
+        raise SystemExit("method list and host dispatch diverge; update CLIENT_METHODS:\n  " + "\n  ".join(problems))
+
+
 def generate() -> dict[pathlib.Path, str]:
     # Normalise CRLF (Windows checkouts with core.autocrlf) before parsing.
     src = {k: strip_comments(p.read_text(encoding="utf-8").replace("\r\n", "\n")) for k, p in SOURCES.items()}
+    check_dispatch_arms(src)
     cmd = src["commands"]
     nested_names = ["ResourceEntry"]
     nested: dict[str, dict] = {n: {} for n in nested_names + ["NodeBatchOp", "BatchOp"]}

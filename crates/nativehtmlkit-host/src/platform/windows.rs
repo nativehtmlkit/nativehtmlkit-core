@@ -623,6 +623,7 @@ pub fn detach_owned_console() {
 /// launcher is the host itself, so there is nothing to watch.
 pub fn watch_launcher(
     _wake: std::sync::Arc<dyn Fn() + Send + Sync>,
+    _watchdog: super::LauncherWatchdog,
 ) -> Option<std::sync::Arc<std::sync::atomic::AtomicBool>> {
     None
 }
@@ -691,6 +692,18 @@ impl Drop for Attributes {
     }
 }
 
+/// An anonymous pipe for one backend output stream: the write end is inheritable, the read end is
+/// made non-inheritable before return.
+///
+/// SAFETY / inheritance justification (CORE-A-1 inventory): `CreatePipe` receives valid out
+/// pointers and a fully initialised `SECURITY_ATTRIBUTES`; both results are owned by `Handle`
+/// immediately, so each is closed exactly once. Both ends are briefly inheritable, between
+/// `CreatePipe` and `SetHandleInformation`. That is not a leak into the backend, whose
+/// `CreateProcessW` passes an explicit `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` containing only the
+/// write ends. Only a *concurrent* `CreateProcess(bInheritHandles=TRUE)` without a handle list
+/// in this process could also inherit an end, which would at most delay EOF on the backend's
+/// output; the host spawns no other process while `spawn_backend` runs (it is called once, from
+/// the GUI thread, during startup).
 fn capture_pipe() -> io::Result<(Handle, Handle)> {
     let attributes = SECURITY_ATTRIBUTES {
         nLength: size_of::<SECURITY_ATTRIBUTES>() as u32,
@@ -799,7 +812,11 @@ pub fn spawn_backend(
     // a command line, shell invocation or log message.
     let mut environment: BTreeMap<String, (OsString, OsString)> = BTreeMap::new();
     for (key, value) in std::env::vars_os() {
-        environment.insert(key.to_string_lossy().to_uppercase(), (key, value));
+        let upper = key.to_string_lossy().to_uppercase();
+        if super::HOST_ONLY_ENV.contains(&upper.as_str()) {
+            continue;
+        }
+        environment.insert(upper, (key, value));
     }
     for (key, value) in &config.env {
         environment.insert(key.to_uppercase(), (key.into(), value.into()));
@@ -947,6 +964,29 @@ pub fn initialize_application(app_id: &str) -> Result<()> {
         bail!("SetCurrentProcessExplicitAppUserModelID failed: {result:#x}");
     }
     Ok(())
+}
+
+/// Where live-bitmap transport files are created. `%TEMP%` is already per-user (profile ACL), and
+/// clients/qualification tooling look for the transport there, so the location is unchanged; the
+/// file name carries the host pid for the startup sweep (CORE-A-02).
+pub fn bitmap_directory() -> Result<PathBuf> {
+    Ok(std::env::temp_dir())
+}
+
+/// Whether a process with `pid` is still running. Failure to inspect an existing process (access
+/// denied) reads as alive, so the caller only ever keeps a file it is unsure about.
+pub fn process_alive(pid: u32) -> bool {
+    // SAFETY: OpenProcess has no memory preconditions; a non-null result is an owned handle that
+    // `Handle` closes exactly once.
+    let raw = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if raw.is_null() {
+        return unsafe { GetLastError() } == ERROR_ACCESS_DENIED;
+    }
+    let process = Handle(raw);
+    let mut code = 0u32;
+    // SAFETY: `process` is a valid process handle with query access; `code` is a valid out pointer.
+    let ok = unsafe { GetExitCodeProcess(process.0, &mut code) } != 0;
+    !ok || code == STILL_ACTIVE as u32
 }
 
 pub fn runtime_directory() -> Result<PathBuf> {

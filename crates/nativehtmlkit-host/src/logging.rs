@@ -52,16 +52,110 @@ impl Drop for LogGuard {
     }
 }
 
+/// Map user-facing diagnostics levels to an explicit, bounded set of filters.
+/// Unknown input fails closed to normal output; user-provided filter expressions
+/// are not interpreted here (RUST_LOG remains available for advanced developers).
+fn diagnostic_filter(level: &str) -> &'static str {
+    match level.trim().to_ascii_lowercase().as_str() {
+        "off" => "nativehtmlkit_host=error",
+        "debug" => "nativehtmlkit_host=debug",
+        "trace" => "nativehtmlkit_host=trace",
+        _ => "nativehtmlkit_host=info",
+    }
+}
+
+/// Correlation token shared by the launcher, host and backend processes. It is
+/// not a credential, but it is copied verbatim into every record, so only a
+/// short identifier-like value is accepted; anything else is ignored.
+fn session_id(raw: Option<&str>) -> Option<String> {
+    let id = raw?.trim();
+    let valid = !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'));
+    valid.then(|| id.to_owned())
+}
+
+/// Adds `"diagnostic_session_id"` as the first member of every JSON record, so
+/// records stay attributable even when neighbouring records were dropped.
+#[derive(Clone)]
+struct SessionTagged<M> {
+    inner: M,
+    member: Option<std::sync::Arc<[u8]>>,
+}
+
+impl<M> SessionTagged<M> {
+    fn new(inner: M, session: Option<String>) -> Self {
+        let member = session.map(|id| {
+            format!("{{\"diagnostic_session_id\":\"{id}\",")
+                .into_bytes()
+                .into()
+        });
+        Self { inner, member }
+    }
+}
+
+struct SessionTaggedWriter<W> {
+    inner: W,
+    member: Option<std::sync::Arc<[u8]>>,
+}
+
+impl<W: Write> Write for SessionTaggedWriter<W> {
+    fn write(&mut self, record: &[u8]) -> std::io::Result<usize> {
+        // The JSON formatter hands over one complete record per write. Anything
+        // else (or an empty object) passes through unchanged.
+        match (&self.member, record.strip_prefix(b"{")) {
+            (Some(member), Some(rest)) if !rest.starts_with(b"}") => {
+                let mut tagged = Vec::with_capacity(member.len() + rest.len());
+                tagged.extend_from_slice(member);
+                tagged.extend_from_slice(rest);
+                self.inner.write_all(&tagged)?;
+            }
+            _ => self.inner.write_all(record)?,
+        }
+        Ok(record.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+impl<'a, M: tracing_subscriber::fmt::MakeWriter<'a>> tracing_subscriber::fmt::MakeWriter<'a>
+    for SessionTagged<M>
+{
+    type Writer = SessionTaggedWriter<M::Writer>;
+    fn make_writer(&'a self) -> Self::Writer {
+        SessionTaggedWriter {
+            inner: self.inner.make_writer(),
+            member: self.member.clone(),
+        }
+    }
+}
+
 /// Initialize JSON diagnostics after environment setup and before the GUI.
 /// Libraries embedding the host may install their own subscriber instead.
 pub fn init() -> Result<LogGuard> {
     let (output, guard) = writer(std::io::stderr());
     let dropped = output.error_counter();
     let guard = LogGuard(Some(guard));
+    let session = session_id(
+        std::env::var("NATIVEHTMLKIT_DIAGNOSTIC_SESSION_ID")
+            .ok()
+            .as_deref(),
+    );
+    let output = SessionTagged::new(output, session);
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "nativehtmlkit_host=info".into()),
+            // RUST_LOG is the explicit expert override. Otherwise the shared SDK/CLI
+            // flag controls the host logging level without a wire protocol change.
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                tracing_subscriber::EnvFilter::new(diagnostic_filter(
+                    std::env::var("NATIVEHTMLKIT_DIAGNOSTICS")
+                        .as_deref()
+                        .unwrap_or("normal"),
+                ))
+            }),
         )
         .json()
         .with_ansi(false)
@@ -70,6 +164,28 @@ pub fn init() -> Result<LogGuard> {
         .map_err(|error| anyhow::anyhow!("initialize structured logging: {error}"))?;
     let _ = SINK_DROPPED.set(dropped);
     Ok(guard)
+}
+
+/// One complete JSON record for a thread that is about to end the process and
+/// therefore writes stderr directly instead of through the lossy sink. It carries
+/// the session id like every other record.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) fn emergency_record(message: &str) -> String {
+    let mut record = serde_json::Map::new();
+    if let Some(id) = session_id(
+        std::env::var("NATIVEHTMLKIT_DIAGNOSTIC_SESSION_ID")
+            .ok()
+            .as_deref(),
+    ) {
+        record.insert("diagnostic_session_id".into(), id.into());
+    }
+    record.insert("level".into(), "ERROR".into());
+    record.insert(
+        "fields".into(),
+        serde_json::json!({"message":message,"event":"launcher.watchdog"}),
+    );
+    record.insert("target".into(), "nativehtmlkit_host::platform".into());
+    serde_json::Value::Object(record).to_string()
 }
 
 /// Limit formatting/queue work per pump as well as the output queue itself.
@@ -103,6 +219,75 @@ mod tests {
     use super::*;
     use std::sync::mpsc;
     use std::time::Instant;
+
+    #[test]
+    fn diagnostic_level_mapping_is_explicit_and_safe() {
+        assert_eq!(diagnostic_filter("normal"), "nativehtmlkit_host=info");
+        assert_eq!(diagnostic_filter("DEBUG"), "nativehtmlkit_host=debug");
+        assert_eq!(diagnostic_filter("trace"), "nativehtmlkit_host=trace");
+        assert_eq!(diagnostic_filter("off"), "nativehtmlkit_host=error");
+        assert_eq!(
+            diagnostic_filter("nonsense=trace"),
+            "nativehtmlkit_host=info"
+        );
+    }
+
+    #[test]
+    fn session_ids_are_identifier_like_or_ignored() {
+        assert_eq!(
+            session_id(Some(" nhk-12:ab.c_d ")).as_deref(),
+            Some("nhk-12:ab.c_d")
+        );
+        assert_eq!(session_id(None), None);
+        assert_eq!(session_id(Some("")), None);
+        assert_eq!(session_id(Some("a\"b")), None);
+        assert_eq!(session_id(Some("a b")), None);
+        assert_eq!(session_id(Some(&"x".repeat(129))), None);
+    }
+
+    #[test]
+    fn every_json_record_carries_the_session_id() {
+        use tracing_subscriber::fmt::MakeWriter;
+        #[derive(Clone, Default)]
+        struct Sink(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+        impl Write for Sink {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().extend_from_slice(bytes);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let sink = Sink::default();
+        let captured = sink.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .json()
+            .with_ansi(false)
+            .with_writer(SessionTagged::new(
+                move || sink.clone(),
+                Some("nhk-test-1".into()),
+            ))
+            .finish();
+        tracing::subscriber::with_default(subscriber, || {
+            tracing::info!(answer = 42, "first");
+            tracing::warn!("second");
+        });
+        let text = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
+        let records: Vec<serde_json::Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(records.len(), 2);
+        for record in &records {
+            assert_eq!(record["diagnostic_session_id"], "nhk-test-1");
+        }
+        assert_eq!(records[0]["fields"]["answer"], 42);
+
+        // Without a session the record is byte-for-byte what the formatter wrote.
+        let mut plain = SessionTagged::new(Sink::default, None).make_writer();
+        plain.write_all(b"{\"a\":1}\n").unwrap();
+    }
 
     struct BlockedOutput {
         started: mpsc::SyncSender<()>,

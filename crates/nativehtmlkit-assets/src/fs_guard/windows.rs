@@ -69,6 +69,49 @@ pub fn lexical_check(path: &str, unc: bool) -> Result<(), Code> {
     Ok(())
 }
 
+fn is_sep(c: char) -> bool {
+    c == '\\' || c == '/'
+}
+
+/// Whether `path` names a remote or device object rather than a drive path: it starts with two
+/// separators in any spelling (`\\host\share`, `//host/share`, `\\?\UNC\…`, `\\.\…`).
+/// Pure; compiled on every OS.
+pub fn is_unc(path: &str) -> bool {
+    let mut c = path.chars();
+    matches!((c.next(), c.next()), (Some(a), Some(b)) if is_sep(a) && is_sep(b))
+}
+
+/// Lowercased, separator-normalised components of a UNC path (`\\?\UNC\` prefix removed).
+fn unc_components(path: &str) -> Vec<String> {
+    let p = path.replace('/', "\\");
+    let p = p
+        .strip_prefix(r"\\?\UNC\")
+        .map(|r| format!(r"\\{r}"))
+        .unwrap_or(p);
+    p.split('\\')
+        .filter(|c| !c.is_empty())
+        .map(str::to_lowercase)
+        .collect()
+}
+
+/// CORE-A-01: a UNC `path` may be opened only when a configured root is itself UNC and lexically
+/// covers it (same host, share and leading components; `..`/`.` components never pass), so a
+/// document cannot make the host contact an arbitrary SMB server. Non-UNC paths always pass here.
+/// Pure: nothing is resolved or opened. Compiled on every OS.
+pub fn unc_permitted(path: &str, roots: &[&str]) -> bool {
+    if !is_unc(path) {
+        return true;
+    }
+    let p = unc_components(path);
+    if p.iter().any(|c| c == "." || c == "..") || path.starts_with(r"\\.\") {
+        return false;
+    }
+    roots.iter().filter(|r| is_unc(r)).any(|r| {
+        let rc = unc_components(r);
+        rc.len() >= 2 && p.len() >= rc.len() && p[..rc.len()] == rc[..]
+    })
+}
+
 #[cfg(windows)]
 pub use imp::open_with_final_path;
 
@@ -152,5 +195,45 @@ mod tests {
             lexical_check(r"\\server\share\a:b", true),
             Err(Code::ResourceDenied)
         );
+    }
+
+    #[test]
+    fn unc_detection() {
+        for p in [
+            r"\\192.0.2.10\s\a.png",
+            "//192.0.2.10/s/a.png",
+            r"\\?\UNC\host\s\a",
+            r"\\.\pipe\x",
+            r"/\host\s",
+        ] {
+            assert!(is_unc(p), "{p}");
+        }
+        for p in [r"C:\app\a.png", r"\app\a.png", "/app/a.png", "", r"\"] {
+            assert!(!is_unc(p), "{p}");
+        }
+    }
+
+    #[test]
+    fn unc_needs_a_covering_unc_root() {
+        let drive = [r"C:\app"];
+        assert!(unc_permitted(r"C:\app\a.png", &drive));
+        assert!(
+            unc_permitted(r"C:\other\a.png", &drive),
+            "drive paths are judged elsewhere"
+        );
+        assert!(!unc_permitted(r"\\attacker\share\x.png", &drive));
+        assert!(!unc_permitted("//attacker/share/x.png", &drive));
+        assert!(!unc_permitted(r"\\attacker\share\x.png", &[]));
+        let unc = [r"\\Files\Share\ui"];
+        assert!(unc_permitted(r"\\files\share\UI\a.png", &unc));
+        assert!(unc_permitted("//files/share/ui/a.png", &unc));
+        assert!(unc_permitted(r"\\?\UNC\files\share\ui\a.png", &unc));
+        assert!(!unc_permitted(r"\\files\share\uix\a.png", &unc));
+        assert!(!unc_permitted(r"\\files\share\a.png", &unc));
+        assert!(!unc_permitted(r"\\other\share\ui\a.png", &unc));
+        assert!(!unc_permitted(r"\\files\share\ui\..\..\x", &unc));
+        assert!(!unc_permitted(r"\\.\pipe\x", &[r"\\.\pipe"]));
+        // A bare-host root cannot cover every share on that host.
+        assert!(!unc_permitted(r"\\files\share\a.png", &[r"\\files"]));
     }
 }

@@ -17,8 +17,10 @@ lock=tomllib.loads((root/'Cargo.lock').read_text())
 packages={pkg['name'] for pkg in lock['package']}
 assert all(Path(member).name in packages for member in c['workspace']['members']), 'Cargo.lock must match the five renamed crate identities'
 assert (root/'protocol/v1/method-matrix.json').is_file()
+assert (root/'deny.toml').is_file(), 'dependency policy deny.toml is required by the local gate'
 assert (root/'protocol/v1/conformance/golden.json').is_file()
 assert not (root/'protocol/current').exists() and not (root/'protocol/public-v1-candidate').exists(), 'superseded drafts must not compete with protocol/v1'
 import subprocess, sys
+# Fails on stale schemas and when the dispatch match arms and the generator's method list diverge.
 subprocess.run([sys.executable, str(root/'scripts/generate-protocol-contract.py'), '--check'], check=True)
 print('PASS: Core boundaries, Rust workspace and no workflow automation')

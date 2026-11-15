@@ -2,8 +2,9 @@
 # owner: 006-style-engine (T048) - patch register UP-01 / UP-03 / UP-04 / UP-05 / UP-09 / UP-11 / UP-12 / UP-13 / UP-14 (engine/upstream-patches.md).
 #
 # Checks that patches/stylo/stylo/ is exactly servo/stylo @ 37c1ed3b707c8f333304de2107c13b68fbc1057c
-# with P-006-1.patch, P-006-2.patch, P-006-3.patch, P-006-4.patch, P-006-5.patch, P-006-6.patch, P-006-7.patch, P-006-8.patch, P-006-9.patch and P-006-10.patch applied (`patch -p1`), so the patch files, the vendored tree that
-# `[patch."https://github.com/servo/stylo"]` in Cargo.toml builds, and the upstream base cannot drift.
+# with P-006-1 … P-006-10 and P-006-12 … P-006-20 applied in that order (`patch -p1`; there is no P-006-11),
+# so the patch files, the vendored tree that the workspace builds through direct `path` dependencies in
+# Cargo.toml, and the upstream base cannot drift.
 #
 # The pristine tree comes from the cargo git checkout of the locked revision (or UI4ME_UPSTREAM_SOURCE;
 # the revision is recorded in each patch header). Only files cargo does not ship to the

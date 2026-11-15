@@ -932,6 +932,12 @@ fn validate_external_target(target: &str) -> Result<(), RpcError> {
         if let Ok(path) = uri.to_file_path() {
             return refuse_executable_file(&path);
         }
+        // Windows: a `file:` target the check cannot map to a path must not reach the shell
+        // unchecked (CORE-A-07).
+        #[cfg(target_os = "windows")]
+        return Err(RpcError::denied(
+            "file: targets must name a local or UNC path",
+        ));
     }
     Ok(())
 }
@@ -941,12 +947,57 @@ fn validate_external_target(target: &str) -> Result<(), RpcError> {
 /// such local targets are refused rather than launched.
 fn refuse_executable_file(path: &std::path::Path) -> Result<(), RpcError> {
     #[cfg(target_os = "windows")]
-    if crate::platform::executable_file_type(path) {
+    return refuse_dangerous_file(path, crate::platform::executable_file_type);
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = path;
+        Ok(())
+    }
+}
+
+/// Whether Win32 path normalisation would open a different name than the one written: a component
+/// (after an optional `\\?\`/`\\.\` prefix and a leading drive designator) that ends in `.` or a
+/// space, which Windows strips, or contains `:`, which names an alternate data stream. `.` and `..`
+/// components are ordinary. Pure; compiled on every OS.
+fn win32_rewritten_name(path: &str) -> bool {
+    let rest = [r"\\?\", r"\\.\", "//?/", "//./"]
+        .iter()
+        .find_map(|prefix| path.strip_prefix(prefix))
+        .unwrap_or(path);
+    let mut first = true;
+    for component in rest.split(['\\', '/']).filter(|c| !c.is_empty()) {
+        let bytes = component.as_bytes();
+        let drive = first && bytes.len() == 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+        first = false;
+        if drive || component == "." || component == ".." {
+            continue;
+        }
+        if component.contains(':') || component.ends_with(['.', ' ']) {
+            return true;
+        }
+    }
+    false
+}
+
+/// The Windows refusal with the shell's classifier injected, so the decision logic is tested on
+/// every OS.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+fn refuse_dangerous_file(
+    path: &std::path::Path,
+    dangerous: impl Fn(&std::path::Path) -> bool,
+) -> Result<(), RpcError> {
+    // CORE-A-07: decide on the name Windows will actually open. Rather than re-implementing the
+    // Win32 normalisation, names it would rewrite are refused before the extension is looked at.
+    if win32_rewritten_name(&path.to_string_lossy()) {
+        return Err(RpcError::denied(
+            "Paths with a component ending in a dot or space, or naming a stream (':'), are not opened externally",
+        ));
+    }
+    if dangerous(path) {
         return Err(RpcError::denied(
             "Executable file types are not opened externally",
         ));
     }
-    let _ = path;
     Ok(())
 }
 
@@ -960,6 +1011,69 @@ mod tests {
         assert!(validate_external_target("relative/file").is_err());
         assert!(validate_external_target("https://example.com/\nrun").is_err());
     }
+    /// CORE-A-07: Win32 strips trailing dots/spaces and treats `:` as an alternate data stream, so
+    /// `a.exe.`, `a.exe ` and `a.exe::$DATA` would run `a.exe` while their textual extension is not
+    /// `exe`. The classifier stands in for `AssocIsDangerous(".<extension>")`.
+    #[test]
+    fn executable_check_cannot_be_bypassed_by_win32_name_normalisation() {
+        let exe = |p: &std::path::Path| {
+            !p.to_string_lossy().ends_with(['\\', '/'])
+                && p.to_string_lossy()
+                    .rsplit(['\\', '/'])
+                    .next()
+                    .and_then(|n| n.rsplit_once('.'))
+                    .is_some_and(|(_, e)| e.eq_ignore_ascii_case("exe"))
+        };
+        let check = |t: &str| refuse_dangerous_file(std::path::Path::new(t), exe);
+        for t in [
+            r"C:\x\a.exe",
+            r"C:\x\a.exe.",
+            r"C:\x\a.exe...",
+            r"C:\x\a.exe ",
+            r"C:\x\a.exe. .",
+            r"C:\x\a.exe::$DATA",
+            r"C:\x\a.exe:zone",
+            r"C:\x\a.EXE.",
+            r"\\host\share\a.exe.",
+            "/C:/x/a.exe.",
+        ] {
+            assert!(check(t).is_err(), "{t:?} must be refused");
+        }
+        for t in [
+            r"C:\x\notes.txt",
+            r"C:\x\..\notes.txt",
+            r"C:\x\.\notes.txt",
+            r"\\host\share\notes.txt",
+            r"\\?\C:\x\notes.txt",
+            "/C:/x/notes.txt",
+            r"C:\x\v1.2\notes.txt",
+        ] {
+            assert!(check(t).is_ok(), "{t:?} must stay allowed");
+        }
+    }
+
+    /// CORE-A-07 end to end with the real shell classifier (Windows only).
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_external_open_refuses_normalised_executable_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let exe = dir.path().join("tool.exe");
+        std::fs::write(&exe, b"x").unwrap();
+        let base = exe.to_str().unwrap().to_owned();
+        for suffix in [".", "..", " ", ". ", "::$DATA", ":zone"] {
+            let target = format!("{base}{suffix}");
+            assert!(validate_external_target(&target).is_err(), "{target:?}");
+        }
+        let uri = url::Url::from_file_path(&exe).unwrap();
+        for suffix in [".", "%20", "%2E"] {
+            let target = format!("{uri}{suffix}");
+            assert!(validate_external_target(&target).is_err(), "{target:?}");
+        }
+        let notes = dir.path().join("notes.txt");
+        std::fs::write(&notes, b"x").unwrap();
+        assert!(validate_external_target(notes.to_str().unwrap()).is_ok());
+    }
+
     #[cfg(target_os = "windows")]
     #[test]
     fn windows_external_open_refuses_executable_file_types() {

@@ -2,12 +2,19 @@
 //!
 //! The test executable is also the backend: the real `nativehtmlkit-host run --headless`
 //! spawns it, it authenticates over the real Unix socket / Windows named pipe, and drives
-//! every client method, every `document.command` op, and the envelope edge cases
-//! (unknown members, duplicate keys, `id:null`, batches, notifications, malformed frames).
+//! every client method in `protocol/v1/method-matrix.json` (`app.force_quit` in a second,
+//! dedicated host run because it ends the session), every `document.command` op, and the
+//! envelope edge cases (unknown members, duplicate keys, `id:null`, batches, notifications,
+//! malformed frames). `app.activate` is the secondary-launcher hand-off and is driven by
+//! `host_integration.rs`, not here.
 //!
-//! Observations are reduced to stable facts (ok + result member names, or the error code)
-//! and compared with the committed golden file `protocol/v1/conformance/golden.json`.
-//! A difference fails the test. To intentionally change the contract, regenerate with
+//! Observations are reduced to contract-level facts and compared with the committed golden
+//! file `protocol/v1/conformance/golden.json`: the error code (and whether it is
+//! uncorrelated), or for a success the JSON kind of every top-level result member plus the
+//! value of every boolean member, an array's length, or a scalar boolean/null value. Nested
+//! contents, strings and numbers are *not* compared (see [`summarize`] and
+//! [`VALUE_EXCLUSIONS`]). A difference fails the test. To intentionally change the contract,
+//! regenerate with
 //! `NATIVEHTMLKIT_CONFORMANCE_BLESS=1 cargo test -p nativehtmlkit-host --test protocol_conformance`
 //! and review the diff. Headless results never qualify native GUI behavior.
 
@@ -23,13 +30,25 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 const SCENARIO_ENV: &str = "NATIVEHTMLKIT_CONFORMANCE_EVIDENCE";
+/// Which backend script the fixture runs: `main` (default) or `force_quit`.
+const SCENARIO_KIND_ENV: &str = "NATIVEHTMLKIT_CONFORMANCE_SCENARIO";
+/// File the `force_quit` backend writes only if it keeps running after sending the request.
+const SURVIVED_ENV: &str = "NATIVEHTMLKIT_CONFORMANCE_SURVIVED";
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-#[test]
-fn protocol_v1_conformance_matches_golden() {
+struct FixtureRun {
+    exit_code: Option<i32>,
+    evidence: Option<Value>,
+    survived_marker: bool,
+    log: String,
+}
+
+/// Launch `nativehtmlkit-host run --headless` with this test executable as the backend
+/// running `scenario`, and wait (bounded) for the host to exit.
+fn run_fixture(scenario: &str) -> FixtureRun {
     let directory = tempfile::tempdir().unwrap();
     let runtime = directory.path().join("runtime");
     fs::create_dir(&runtime).unwrap();
@@ -39,9 +58,14 @@ fn protocol_v1_conformance_matches_golden() {
         fs::set_permissions(&runtime, fs::Permissions::from_mode(0o700)).unwrap();
     }
     let evidence = directory.path().join("observed.json");
+    let survived = directory.path().join("survived.json");
     let config = AppConfig {
         app: AppInfo {
-            id: format!("org.nativehtmlkit.Conformance.p{}", std::process::id()),
+            id: format!(
+                "org.nativehtmlkit.Conformance.p{}.{}",
+                std::process::id(),
+                scenario.replace('_', "-")
+            ),
             name: "Conformance fixture".into(),
             version: None,
             icon: None,
@@ -56,7 +80,11 @@ fn protocol_v1_conformance_matches_golden() {
                 "--test-threads=1".into(),
             ],
             cwd: directory.path().to_owned(),
-            env: BTreeMap::from([(SCENARIO_ENV.into(), evidence.to_str().unwrap().to_owned())]),
+            env: BTreeMap::from([
+                (SCENARIO_ENV.into(), evidence.to_str().unwrap().to_owned()),
+                (SCENARIO_KIND_ENV.into(), scenario.to_owned()),
+                (SURVIVED_ENV.into(), survived.to_str().unwrap().to_owned()),
+            ]),
         },
         host: HostConfig {
             startup_timeout_ms: 10_000,
@@ -87,18 +115,55 @@ fn protocol_v1_conformance_matches_golden() {
         if Instant::now() > deadline {
             let _ = host.kill();
             panic!(
-                "host did not finish:\n{}",
+                "host did not finish ({scenario}):\n{}",
                 fs::read_to_string(&log_path).unwrap_or_default()
             );
         }
         std::thread::sleep(Duration::from_millis(20));
     };
-    let output = fs::read_to_string(&log_path).unwrap_or_default();
-    assert_eq!(status.code(), Some(0), "host exit status:\n{output}");
-    let observed: Value = serde_json::from_slice(&fs::read(&evidence).unwrap_or_else(|e| {
-        panic!("backend fixture did not record observations ({e}):\n{output}")
-    }))
-    .unwrap();
+    let log = fs::read_to_string(&log_path).unwrap_or_default();
+    let evidence = fs::read(&evidence)
+        .ok()
+        .map(|bytes| serde_json::from_slice(&bytes).unwrap());
+    FixtureRun {
+        exit_code: status.code(),
+        evidence,
+        survived_marker: survived.exists(),
+        log,
+    }
+}
+
+#[test]
+fn protocol_v1_conformance_matches_golden() {
+    let main = run_fixture("main");
+    let output = &main.log;
+    assert_eq!(main.exit_code, Some(0), "host exit status:\n{output}");
+    let mut observed = main
+        .evidence
+        .unwrap_or_else(|| panic!("backend fixture did not record observations:\n{output}"));
+
+    // `app.force_quit` kills the backend and ends the session, so it gets its own run.
+    // Its wire-level outcome is what the host does: kill the backend before the reply can
+    // be acted on, and exit with failure status 1 (a killed backend is an unsuccessful exit).
+    let force = run_fixture("force_quit");
+    let prelude = force.evidence.unwrap_or_else(|| {
+        panic!(
+            "force_quit fixture did not reach app.force_quit:\n{}",
+            force.log
+        )
+    });
+    let cases = observed["cases"].as_object_mut().unwrap();
+    for (key, value) in prelude["cases"].as_object().unwrap() {
+        cases.insert(key.clone(), value.clone());
+    }
+    cases.insert(
+        "app.force_quit.host_exit_code".into(),
+        json!(force.exit_code),
+    );
+    cases.insert(
+        "app.force_quit.backend_continued_after_request".into(),
+        json!(force.survived_marker),
+    );
 
     let golden_path = repo_root().join("protocol/v1/conformance/golden.json");
     let rendered = serde_json::to_string_pretty(&observed).unwrap() + "\n";
@@ -147,8 +212,39 @@ struct Client {
     cases: Map<String, Value>,
 }
 
-/// Reduce a response to stable, contract-level facts.
-fn summarize(response: &Value) -> Value {
+/// Boolean result members whose *value* is legitimately platform-, desktop- or
+/// run-dependent. The golden is shared by Linux and Windows, so for these
+/// `(case, member, reason)` entries only the member's JSON kind is recorded, never its
+/// value (`"*"` matches every member of the case). Keep this list minimal; every entry
+/// needs a reason.
+///
+/// It is currently empty, deliberately:
+/// - The top-level `host.capabilities` / `host.hello` flags in headless mode are computed
+///   from `headless` alone (`window_positioning` is `native && windows`, so `false` on both
+///   OSes); the platform-specific detail lives in the nested `features` object, whose
+///   contents are not compared.
+/// - `desktop.preferences.available` is `false` with `source: "headless"` on both OSes,
+///   because the headless host never starts the preference watcher.
+/// - Run-dependent values (pids, counts, revisions, paths) are numbers or strings, which
+///   are recorded by kind only.
+///
+/// If a platform legitimately differs, add the pair here with the reason instead of
+/// blessing per-OS goldens.
+const VALUE_EXCLUSIONS: &[(&str, &str, &str)] = &[];
+
+fn value_excluded(case: &str, member: &str) -> bool {
+    VALUE_EXCLUSIONS
+        .iter()
+        .any(|(c, m, _)| *c == case && (*m == "*" || *m == member))
+}
+
+/// Reduce a response to stable, contract-level facts:
+/// - error: the code, plus `id: null` when the error is uncorrelated;
+/// - object result: `members` maps every top-level member to its JSON kind, and `booleans`
+///   records the value of every boolean member (except [`VALUE_EXCLUSIONS`]);
+/// - array result: its `length`;
+/// - boolean/null result: its `value`; other scalars: kind only.
+fn summarize(case: &str, response: &Value) -> Value {
     if let Some(error) = response.get("error") {
         // Request IDs are positional and not contract; whether an error is uncorrelated
         // (`id: null`) is.
@@ -161,9 +257,23 @@ fn summarize(response: &Value) -> Value {
         let result = &response["result"];
         match result {
             Value::Object(map) => {
-                json!({"ok": "object", "members": map.keys().collect::<Vec<_>>()})
+                let members: Map<String, Value> = map
+                    .iter()
+                    .map(|(k, v)| (k.clone(), json!(kind(v))))
+                    .collect();
+                let booleans: Map<String, Value> = map
+                    .iter()
+                    .filter(|(k, v)| v.is_boolean() && !value_excluded(case, k))
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                let mut summary = json!({"ok": "object", "members": members});
+                if !booleans.is_empty() {
+                    summary["booleans"] = Value::Object(booleans);
+                }
+                summary
             }
-            Value::Array(_) => json!({"ok": "array"}),
+            Value::Array(items) => json!({"ok": "array", "length": items.len()}),
+            Value::Bool(_) | Value::Null => json!({"ok": kind(result), "value": result}),
             other => json!({"ok": kind(other)}),
         }
     }
@@ -246,14 +356,14 @@ impl Client {
     }
     fn case(&mut self, name: &str, method: &str, params: Value) -> Value {
         let response = self.call_raw(method, params);
-        self.cases.insert(name.into(), summarize(&response));
+        self.cases.insert(name.into(), summarize(name, &response));
         response
     }
     /// A raw frame whose reply is correlated by position (the only request in flight).
     fn raw_case(&mut self, name: &str, body: &str) {
         self.raw(body.as_bytes());
         let response = self.response();
-        self.cases.insert(name.into(), summarize(&response));
+        self.cases.insert(name.into(), summarize(name, &response));
     }
     /// A notification never gets a response: prove it by a following request whose
     /// response must be the very next response frame.
@@ -351,6 +461,10 @@ fn conformance_backend() {
     let Some(evidence) = std::env::var_os(SCENARIO_ENV) else {
         return;
     };
+    if std::env::var(SCENARIO_KIND_ENV).as_deref() == Ok("force_quit") {
+        force_quit_backend(Path::new(&evidence));
+        return;
+    }
     let mut c = Client::connect();
 
     // --- authentication
@@ -494,7 +608,7 @@ fn conformance_backend() {
         let reply = protocol::read_frame(&mut intruder).unwrap().unwrap();
         c.cases.insert(
             "security.second_connection.window.list".into(),
-            summarize(&reply),
+            summarize("security.second_connection.window.list", &reply),
         );
         protocol::write_frame(
             &mut intruder,
@@ -508,7 +622,7 @@ fn conformance_backend() {
         let reply = protocol::read_frame(&mut intruder).unwrap().unwrap();
         c.cases.insert(
             "security.second_connection.hello_with_valid_token".into(),
-            summarize(&reply),
+            summarize("security.second_connection.hello_with_valid_token", &reply),
         );
         intruder.write_all(&[0, 0, 0, 3, b'{', b'x', b'}']).unwrap();
         intruder.flush().unwrap();
@@ -811,6 +925,46 @@ fn conformance_backend() {
     c.case("bitmap.create.bad_format", "bitmap.create", json!({"window_id":window,"document_id":document,"bitmap_id":"b","width":2,"height":2,"pixel_format":"BGRA"}));
     c.case("bitmap.create.ok", "bitmap.create", json!({"window_id":window,"document_id":document,"bitmap_id":"b","width":2,"height":2,"pixel_format":"RGBA8"}));
     c.case(
+        "bitmap.present.ok",
+        "bitmap.present",
+        json!({"window_id":window,"document_id":document,"bitmap_id":"b","sequence":1,"slot":0}),
+    );
+    c.case(
+        "bitmap.present.stale_sequence",
+        "bitmap.present",
+        json!({"window_id":window,"document_id":document,"bitmap_id":"b","sequence":1,"slot":1}),
+    );
+    c.case(
+        "bitmap.present.next_sequence_other_slot",
+        "bitmap.present",
+        json!({"window_id":window,"document_id":document,"bitmap_id":"b","sequence":2,"slot":1}),
+    );
+    c.case(
+        "bitmap.present.sequence_zero",
+        "bitmap.present",
+        json!({"window_id":window,"document_id":document,"bitmap_id":"b","sequence":0,"slot":0}),
+    );
+    c.case(
+        "bitmap.present.slot_out_of_bounds",
+        "bitmap.present",
+        json!({"window_id":window,"document_id":document,"bitmap_id":"b","sequence":3,"slot":2}),
+    );
+    c.case(
+        "bitmap.present.unknown_bitmap",
+        "bitmap.present",
+        json!({"window_id":window,"document_id":document,"bitmap_id":"nope","sequence":1,"slot":0}),
+    );
+    c.case(
+        "bitmap.present.unknown_member",
+        "bitmap.present",
+        json!({"window_id":window,"document_id":document,"bitmap_id":"b","sequence":4,"slot":0,"z":1}),
+    );
+    c.case(
+        "bitmap.present.missing_member",
+        "bitmap.present",
+        json!({"window_id":window,"document_id":document,"bitmap_id":"b","slot":0}),
+    );
+    c.case(
         "bitmap.close.ok",
         "bitmap.close",
         json!({"window_id":window,"document_id":document,"bitmap_id":"b"}),
@@ -886,4 +1040,40 @@ fn conformance_backend() {
         "cases": c.cases,
     });
     fs::write(evidence, serde_json::to_vec_pretty(&observed).unwrap()).unwrap();
+}
+
+/// `app.force_quit` scenario: reach the running phase, record the prelude, then force quit.
+/// The host kills the backend before it builds the reply, so nothing after the request may
+/// run; if it does, the `SURVIVED_ENV` marker records it and the golden comparison fails.
+fn force_quit_backend(evidence: &Path) {
+    let mut c = Client::connect();
+    c.call("host.hello", json!({"token":token(),"protocol_version":1}));
+    c.call("window.create", json!({"title":"Force quit"}));
+    c.case("app.force_quit.prelude.app.ready", "app.ready", json!({}));
+    let observed = json!({"cases": c.cases});
+    fs::write(evidence, serde_json::to_vec_pretty(&observed).unwrap()).unwrap();
+    c.next += 1;
+    let id = format!("c{}", c.next);
+    protocol::write_frame(
+        &mut c.stream,
+        &protocol::request(&id, "app.force_quit", json!({})),
+    )
+    .unwrap();
+    // Any reply or disconnect observed here means the backend was still running after the
+    // host processed `app.force_quit`; record it at once (the host may kill us later, e.g. at
+    // the shutdown deadline, which must not hide the defect).
+    let mut reply = Value::Null;
+    loop {
+        c.stream.set_timeout(Some(Duration::from_secs(10))).unwrap();
+        match protocol::read_frame(&mut c.stream) {
+            Ok(Some(message)) if message["id"] == json!(id) => {
+                reply = message;
+                break;
+            }
+            Ok(Some(_)) => {}
+            _ => break,
+        }
+    }
+    let marker = std::env::var(SURVIVED_ENV).unwrap();
+    fs::write(marker, serde_json::to_vec(&reply).unwrap()).unwrap();
 }

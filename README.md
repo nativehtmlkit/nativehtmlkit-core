@@ -18,8 +18,9 @@ python3 scripts/restore-source-assets.py /path/to/ui4me-core-main.zip   # verifi
 bash scripts/build-local.sh          # Windows: scripts/build-local.ps1 (Python 3 needed by Stylo's build)
 ```
 
-The gate checks assets, architecture and protocol-contract freshness, `cargo fmt` (first-party
-packages), `clippy -D warnings`, the full test suite (including the protocol v1 runtime golden),
+The gate checks assets, architecture and protocol-contract freshness (including dispatch arms vs
+method list), vendored Stylo/Taffy patch integrity, `cargo deny` advisories/bans/sources (skipped
+with a warning if `cargo-deny` is not installed), `cargo fmt` (first-party packages), `clippy -D warnings`, the full test suite (including the protocol v1 runtime golden),
 the release build and a verified local stage. Native GUI qualification is separate.
 
 ```bash
@@ -31,9 +32,11 @@ the release build and a verified local stage. Native GUI qualification is separa
 
 ## Protocol
 
-[`protocol/README.md`](protocol/README.md) is the v1 contract: generated method/op matrix and JSON
-Schemas, a 327-case runtime golden that passes identically on Linux and Windows, the compatibility
-policy and an SDK authoring guide. Status: **locked release candidate (`1.0-rc`)**; the public
+[`protocol/README.md`](protocol/README.md) is the v1 contract: method/op matrix and JSON Schemas
+(parameter types generated from the Rust serde types; method list checked against the dispatch
+arms), a 338-case runtime golden (error codes, result member kinds, boolean values and array
+lengths; identical Linux/Windows results were last shown for 1.0.1 and are pending
+re-qualification for 1.0.2), the compatibility policy and an SDK authoring guide. Status: **locked release candidate (`1.0-rc`)**; the public
 stability declaration waits for the native gates listed in `protocol/CONFORMANCE-ROADMAP.md`.
 Protocol v1 keeps its `UI4ME_*` launch variables and legacy markup/resource names;
 `nativehtmlkit-*` spellings are additive aliases.
@@ -41,13 +44,38 @@ Protocol v1 keeps its `UI4ME_*` launch variables and legacy markup/resource name
 ## Releases
 
 `python3 scripts/release-local.py --stage-only` stages `dist/nativehtmlkit-core-vVERSION-PLATFORM.zip`
-(host, protocol bundle, licences incl. the embedded font's OFL, provenance, manifest with host
-SHA-256, `SHA256SUMS`) and verifies it from a clean extraction. Publishing to GitHub Releases needs
-an explicit user request and `--publish --confirm publish-VERSION` from a clean tagged commit. No
-GitHub Actions exist or may be added.
+(host, protocol bundle, `LICENSE`, `THIRD_PARTY_NOTICES.md`, generated
+`licenses/THIRD-PARTY-LICENSES.txt` for the host's dependency tree, MPL-2.0 and embedded-asset
+notices, provenance, a manifest with source commit/dirty state/tree hash, host SHA-256, target and
+toolchain, and `SHA256SUMS`) as a deterministic zip and verifies it from a clean extraction.
+Re-staging the same version with a different host binary requires `--restage`. Publishing to
+GitHub Releases needs an explicit user request and `--publish --confirm publish-VERSION` from a
+clean commit whose tag `vVERSION` equals HEAD and from which the stage was made. No GitHub Actions
+exist or may be added.
 
 ## Repositories
 
 - `nativehtmlkit-core` (this): host, renderer, protocol contract, qualified host releases.
 - `nativehtmlkit-cli`: independent Rust client and pipeline tool; consumes pinned host binaries.
-- `nativehtmlkit-python`, `nativehtmlkit-powershell`: planned SDK repositories (not shipped here).
+- `nativehtmlkit-python`, `nativehtmlkit-powershell`: SDKs, in their own independently versioned
+  repositories (not shipped here; they consume released Core host binaries).
+
+## Local diagnostics
+
+Run with `NATIVEHTMLKIT_DIAGNOSTICS=debug` or `trace` to enable additional
+structured host logs on stderr; `RUST_LOG` takes precedence if set. This affects
+logging only, not the protocol wire format. `NATIVEHTMLKIT_DIAGNOSTIC_SESSION_ID`
+(identifier-like, at most 128 bytes) is copied into every record as
+`diagnostic_session_id`.
+
+| Level | Adds |
+|---|---|
+| `normal` | start/stop, warnings, errors, backend stdout/stderr lines |
+| `debug` | lifecycle phase transitions (`event:"lifecycle.phase"`, `from`, `to`), launcher-loss acknowledgement, stale decision replies, presentation timings |
+| `trace` | per request `event:"rpc.received"` (`method`, `id`, `connection`) and `event:"rpc.completed"` (`method`, `id`, `connection`, `duration_us`, `error_code` on failure); per host notification `event:"notify.sent"` (`method`; for `window.event`/`document.event` also the event `type` and `window_id`/`document_id`); per host request `event:"request.sent"` (`window.before_close`/`app.before_quit`, decision `id`) |
+
+Trace and debug records are metadata only: never request params, results, text, values,
+paths, URLs or the launch token. The stderr sink is bounded (128 records) and lossy by
+design, so under load records can be dropped; `host.diagnostics` → `logging` reports
+`sink_dropped_records` and `backend_omitted_records`. Never publish raw logs without
+review: backend stdout/stderr lines (all levels) may contain application data.

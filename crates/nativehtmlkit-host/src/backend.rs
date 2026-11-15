@@ -37,14 +37,16 @@ impl Backend {
         let logs = Arc::new(Mutex::new(VecDeque::with_capacity(LOG_LINES)));
         let dropped = Arc::new(AtomicU64::new(0));
         let stopped = Arc::new(AtomicBool::new(false));
+        let token: Arc<str> = Arc::from(token);
         for (name, reader) in [("stdout", native.stdout), ("stderr", native.stderr)] {
+            let token = token.clone();
             let logs = logs.clone();
             let dropped = dropped.clone();
             let stopped = stopped.clone();
             let wake = wake.clone();
             thread::Builder::new()
                 .name(format!("nativehtmlkit-backend-{name}"))
-                .spawn(move || drain(reader, name, logs, dropped, stopped, wake))?;
+                .spawn(move || drain(reader, name, &token, logs, dropped, stopped, wake))?;
         }
         Ok(Self {
             child: native.child,
@@ -86,7 +88,23 @@ impl Drop for Backend {
     }
 }
 
-fn push(logs: &Mutex<VecDeque<LogLine>>, dropped: &AtomicU64, name: &str, bytes: &[u8]) {
+const REDACTED_TOKEN: &str = "[redacted-token]";
+
+fn push(
+    logs: &Mutex<VecDeque<LogLine>>,
+    dropped: &AtomicU64,
+    name: &str,
+    token: &str,
+    bytes: &[u8],
+) {
+    let mut text = String::from_utf8_lossy(bytes)
+        .trim_end_matches('\r')
+        .to_owned();
+    // CORE-A-12: the session token must never reach the host log, even if the backend prints
+    // its own environment.
+    if !token.is_empty() && text.contains(token) {
+        text = text.replace(token, REDACTED_TOKEN);
+    }
     let mut queue = logs.lock().unwrap_or_else(|e| e.into_inner());
     if queue.len() == LOG_LINES {
         queue.pop_front();
@@ -94,15 +112,25 @@ fn push(logs: &Mutex<VecDeque<LogLine>>, dropped: &AtomicU64, name: &str, bytes:
     }
     queue.push_back(LogLine {
         stream: name.to_owned(),
-        text: String::from_utf8_lossy(bytes)
-            .trim_end_matches('\r')
-            .to_owned(),
+        text,
     });
+}
+
+/// Move a bounded-record split point back so that a token beginning near the end of the record
+/// is carried whole into the next record (where `push` can redact it) instead of being cut.
+fn token_safe_split(record: &[u8], token: &[u8]) -> usize {
+    for overlap in (1..token.len().min(record.len())).rev() {
+        if record.ends_with(&token[..overlap]) {
+            return record.len() - overlap;
+        }
+    }
+    record.len()
 }
 
 fn drain(
     mut reader: Box<dyn Read + Send>,
     name: &str,
+    token: &str,
     logs: Arc<Mutex<VecDeque<LogLine>>>,
     dropped: Arc<AtomicU64>,
     stopped: Arc<AtomicBool>,
@@ -117,7 +145,7 @@ fn drain(
             Ok(length) => {
                 for byte in &buffer[..length] {
                     if *byte == b'\n' {
-                        push(&logs, &dropped, name, &line);
+                        push(&logs, &dropped, name, token, &line);
                         line.clear();
                     } else {
                         line.push(*byte);
@@ -129,7 +157,8 @@ fn drain(
                                 Err(error) if error.error_len().is_none() => error.valid_up_to(),
                                 _ => line.len(),
                             };
-                            push(&logs, &dropped, name, &line[..prefix]);
+                            let prefix = token_safe_split(&line[..prefix], token.as_bytes());
+                            push(&logs, &dropped, name, token, &line[..prefix]);
                             line.drain(..prefix);
                         }
                     }
@@ -147,7 +176,7 @@ fn drain(
         }
     }
     if !line.is_empty() {
-        push(&logs, &dropped, name, &line);
+        push(&logs, &dropped, name, token, &line);
     }
     wake();
 }
@@ -155,6 +184,58 @@ fn drain(
 #[cfg(test)]
 mod tests {
     use super::*;
+    const TEST_TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    fn drained(input: Vec<u8>) -> Vec<String> {
+        let logs = Arc::new(Mutex::new(VecDeque::new()));
+        drain(
+            Box::new(std::io::Cursor::new(input)),
+            "stderr",
+            TEST_TOKEN,
+            logs.clone(),
+            Arc::new(AtomicU64::new(0)),
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(|| {}),
+        );
+        let lines = logs
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|l| l.text.clone())
+            .collect();
+        lines
+    }
+
+    /// CORE-A-12: a backend that prints its environment must not copy the session token into the
+    /// host log, including when the token straddles a bounded-record split.
+    #[test]
+    fn session_token_is_redacted_from_backend_output() {
+        let lines = drained(
+            format!("UI4ME_TOKEN={TEST_TOKEN}\nx {TEST_TOKEN}{TEST_TOKEN} y\nclean\n").into_bytes(),
+        );
+        assert_eq!(
+            lines,
+            [
+                "UI4ME_TOKEN=[redacted-token]",
+                "x [redacted-token][redacted-token] y",
+                "clean"
+            ]
+        );
+        for cut in [1, 20, 63] {
+            let input = format!("{}{TEST_TOKEN}tail\n", "x".repeat(LINE_BYTES - cut));
+            let lines = drained(input.into_bytes());
+            let joined = lines.concat();
+            assert!(!joined.contains(&TEST_TOKEN[..16]), "cut {cut}: {lines:?}");
+            assert!(
+                joined.contains("[redacted-token]tail"),
+                "cut {cut}: {lines:?}"
+            );
+            assert!(
+                lines.iter().all(|l| l.len() <= LINE_BYTES),
+                "records stay bounded"
+            );
+        }
+    }
     #[test]
     fn log_flood_is_drained_and_bounded_without_newlines() {
         let logs = Arc::new(Mutex::new(VecDeque::new()));
@@ -163,6 +244,7 @@ mod tests {
         drain(
             Box::new(std::io::Cursor::new(bytes)),
             "stdout",
+            TEST_TOKEN,
             logs.clone(),
             dropped.clone(),
             Arc::new(AtomicBool::new(false)),
@@ -180,6 +262,7 @@ mod tests {
         drain(
             Box::new(std::io::Cursor::new(value.as_bytes().to_vec())),
             "stdout",
+            TEST_TOKEN,
             logs.clone(),
             dropped,
             Arc::new(AtomicBool::new(false)),

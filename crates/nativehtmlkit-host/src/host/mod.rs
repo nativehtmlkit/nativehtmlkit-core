@@ -39,6 +39,10 @@ use winit::{
 type Wake = Arc<dyn Fn() + Send + Sync>;
 type Reply = (u64, String);
 
+/// Upper bound on requests whose trace start time is retained (trace level only). It is
+/// above the pending-request limit; a request beyond it is still traced, without timing.
+const RPC_TRACE_LIMIT: usize = 2 * protocol::MAX_PENDING;
+
 struct NativeWindow {
     // Adapter must be removed before the underlying HWND is destroyed.
     accessibility: NativeAccessibility,
@@ -185,6 +189,11 @@ pub struct Host {
     backend: Option<Backend>,
     _instance: Option<InstanceLock>,
     client: Option<u64>,
+    /// CORE-A-04: why the host dropped the authenticated backend (it could not receive bounded
+    /// output); turned into the session failure on the next pump, where an event loop is at hand.
+    send_failure: Option<String>,
+    /// Connections the host closed itself: frames they had already queued are discarded.
+    dropped_connections: std::collections::HashSet<u64>,
     connected: HashMap<u64, Instant>,
     token: String,
     wake: Wake,
@@ -208,10 +217,36 @@ pub struct Host {
     exit_code: Arc<AtomicI32>,
     /// Set when a supervising launcher process has exited.
     launcher_gone: Option<Arc<AtomicBool>>,
+    /// Set once this event loop has acted on `launcher_gone`; the launcher watchdog
+    /// terminates the process when this does not happen in time (NHK-CROSS-0001).
+    launcher_acknowledged: Arc<AtomicBool>,
+    /// Method and receive time of in-flight requests, recorded only at trace level.
+    rpc_started: HashMap<Reply, (String, Instant)>,
     /// Shared native presentation context, created with the first window.
     presentation: Option<softbuffer::Context<OwnedDisplayHandle>>,
     preferences: platform::preferences::PreferenceWatch,
     preference_revision: u64,
+}
+
+/// Trace-level record of a host notification (NHK-CROSS-0004): the method, and for
+/// `window.event`/`document.event` only the event type name and window/document ids.
+fn trace_notification(method: &str, params: &Value) {
+    let (kind, window_id, document_id) = match method {
+        "window.event" => (params["type"].as_str(), params["window_id"].as_str(), None),
+        "document.event" => (
+            params["event"]["type"].as_str(),
+            params["window_id"].as_str(),
+            params["document_id"].as_str(),
+        ),
+        _ => (None, None, None),
+    };
+    tracing::trace!(
+        event = "notify.sent",
+        method,
+        "type" = kind,
+        window_id,
+        document_id,
+    );
 }
 
 /// Launch a manifest, forwarding secondary launches to the existing instance.
@@ -350,6 +385,18 @@ fn random_token() -> Result<String> {
     Ok(bytes.iter().map(|v| format!("{v:02x}")).collect())
 }
 
+/// The backend's launch token and the endpoint's instance key. The token is secret; the instance
+/// key is public (socket path / pipe name).
+fn session_credentials(instance: Option<&InstanceLock>) -> Result<(String, String)> {
+    let token = random_token()?;
+    // CORE-A-03: an independent draw from the same OS source, never a slice of the secret.
+    let instance_key = match instance {
+        Some(i) => i.instance_key.clone(),
+        None => random_token()?[..24].to_owned(),
+    };
+    Ok((token, instance_key))
+}
+
 impl Host {
     fn new(
         config: AppConfig,
@@ -365,14 +412,14 @@ impl Host {
                 .map_err(anyhow::Error::msg)?;
         }
         let icon = crate::icons::load(config.app.icon.as_deref())?;
-        let token = random_token()?;
-        let instance_key = instance
-            .as_ref()
-            .map(|i| i.instance_key.clone())
-            .unwrap_or_else(|| token[..24].to_owned());
+        let (token, instance_key) = session_credentials(instance.as_ref())?;
         let server = if standalone {
             None
         } else {
+            let swept = bitmap::sweep_stale_transports();
+            if swept > 0 {
+                tracing::info!(swept, "removed bitmap transport files of exited hosts");
+            }
             Some(Server::bind(&config.app.id, &instance_key, wake.clone())?)
         };
         let backend = match &server {
@@ -387,7 +434,15 @@ impl Host {
         };
         let (job_tx, job_rx) = mpsc::sync_channel(protocol::MAX_PENDING);
         let (action_tx, action_rx) = mpsc::sync_channel(128);
-        let launcher_gone = platform::watch_launcher(wake.clone());
+        let launcher_acknowledged = Arc::new(AtomicBool::new(false));
+        let launcher_gone = platform::watch_launcher(
+            wake.clone(),
+            platform::LauncherWatchdog {
+                acknowledged: launcher_acknowledged.clone(),
+                shutdown_timeout: Duration::from_millis(config.host.shutdown_timeout_ms),
+                backend_group: backend.as_ref().map(Backend::id),
+            },
+        );
         let preferences = platform::preferences::PreferenceWatch::new(!headless, wake.clone());
         let mut lifecycle = Lifecycle::new();
         lifecycle.begin_connecting()?;
@@ -412,6 +467,8 @@ impl Host {
             backend,
             _instance: instance,
             client: None,
+            send_failure: None,
+            dropped_connections: Default::default(),
             connected: HashMap::new(),
             token,
             wake,
@@ -431,6 +488,8 @@ impl Host {
             deferred_clipboard_reads: Vec::new(),
             exit_code,
             launcher_gone,
+            launcher_acknowledged,
+            rpc_started: HashMap::new(),
             presentation: None,
             preferences,
             preference_revision: 0,
@@ -442,24 +501,65 @@ impl Host {
     fn send(&mut self, connection: u64, value: Value) {
         if let Some(server) = &self.server {
             if let Err(error) = server.reply(connection, value) {
-                tracing::warn!(%error, "peer cannot receive bounded output");
+                tracing::warn!(connection, %error, "peer cannot receive bounded output");
                 server.disconnect(connection);
+                self.dropped_connections.insert(connection);
+                if self.client == Some(connection) {
+                    self.client = None;
+                    self.send_failure.get_or_insert_with(|| {
+                        format!("Backend cannot receive bounded host output: {error}")
+                    });
+                }
             }
         }
     }
     fn respond(&mut self, reply: &Reply, value: Result<Value, RpcError>) {
+        let mut error_code = value.as_ref().err().map(|error| error.code);
         let mut message = match value {
             Ok(value) => protocol::success(&reply.1, value),
             Err(error) => protocol::error(Some(&reply.1), &error),
         };
         if let Err(error) = protocol::encoded_size(&message) {
             tracing::warn!(%error, "response could not fit the protocol frame");
-            message = protocol::error(
-                Some(&reply.1),
-                &RpcError::unavailable("Result exceeds the encoded protocol frame limit"),
-            );
+            let error = RpcError::unavailable("Result exceeds the encoded protocol frame limit");
+            error_code = Some(error.code);
+            message = protocol::error(Some(&reply.1), &error);
         }
         self.send(reply.0, message);
+        if !self.rpc_started.is_empty() {
+            if let Some((method, started)) = self.rpc_started.remove(reply) {
+                // NHK-CROSS-0004: metadata only, never params or results.
+                tracing::trace!(
+                    event = "rpc.completed",
+                    method = method.as_str(),
+                    id = reply.1.as_str(),
+                    connection = reply.0,
+                    duration_us = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX),
+                    error_code,
+                );
+            }
+        }
+    }
+
+    /// Trace-level record of a client request or notification (NHK-CROSS-0004). The method
+    /// name is envelope-validated (`[A-Za-z0-9._-]`, at most 128 bytes); params are never
+    /// recorded. Nothing is computed when trace is disabled.
+    fn trace_received(&mut self, connection: u64, method: &str, reply: Option<&Reply>) {
+        if !tracing::enabled!(tracing::Level::TRACE) {
+            return;
+        }
+        tracing::trace!(
+            event = "rpc.received",
+            method,
+            id = reply.map(|reply| reply.1.as_str()),
+            connection,
+        );
+        if let Some(reply) = reply {
+            if self.rpc_started.len() < RPC_TRACE_LIMIT {
+                self.rpc_started
+                    .insert(reply.clone(), (method.to_owned(), Instant::now()));
+            }
+        }
     }
     fn notify(&mut self, method: &str, params: Value) {
         if let Some(client) = self.client {
@@ -470,6 +570,9 @@ impl Host {
                 // diagnostics rather than disconnecting a healthy backend.
                 tracing::warn!(method, %error, "oversized host notification dropped");
                 return;
+            }
+            if tracing::enabled!(tracing::Level::TRACE) {
+                trace_notification(method, &message["params"]);
             }
             #[cfg(test)]
             self.observed_notifications.push(message.clone());
@@ -498,7 +601,11 @@ impl Host {
                 }
                 TransportEvent::Message(id, value) => self.message(id, value, event_loop),
                 TransportEvent::Disconnected(id, reason) => {
+                    if !self.rpc_started.is_empty() {
+                        self.rpc_started.retain(|reply, _| reply.0 != id);
+                    }
                     self.connected.remove(&id);
+                    self.dropped_connections.remove(&id);
                     if self.client == Some(id) {
                         self.client = None;
                         if !matches!(
@@ -510,7 +617,9 @@ impl Host {
                     }
                 }
             }
+            self.fail_on_send_failure(event_loop);
         }
+        self.fail_on_send_failure(event_loop);
         for _ in 0..32 {
             let Ok(result) = self.job_rx.try_recv() else {
                 break;
@@ -600,6 +709,11 @@ impl Host {
             // test harness). This is an external termination, not an answer
             // to any pending decision: cancel those and shut down boundedly.
             self.launcher_gone = None;
+            self.launcher_acknowledged.store(true, Ordering::SeqCst);
+            tracing::debug!(
+                event = "launcher.lost",
+                "event loop acknowledged launcher loss"
+            );
             if !matches!(self.lifecycle.phase(), Phase::Quitting | Phase::Stopped) {
                 self.exit_code.store(1, Ordering::Relaxed);
                 self.begin_shutdown();
@@ -659,7 +773,28 @@ impl Host {
         self.flush_document_refreshes();
     }
 
+    /// Record the deferred CORE-A-04 failure with its real cause (output overflow), unless the
+    /// session is already shutting down, exactly like a lost connection.
+    fn fail_on_send_failure(&mut self, event_loop: Option<&dyn ActiveEventLoop>) {
+        if let Some(reason) = self.send_failure.take() {
+            if !matches!(
+                self.lifecycle.phase(),
+                Phase::Quitting | Phase::Stopped | Phase::Failed
+            ) {
+                self.fail(&reason, event_loop);
+            }
+        }
+    }
+
     fn message(&mut self, connection: u64, value: Value, event_loop: Option<&dyn ActiveEventLoop>) {
+        if self.dropped_connections.contains(&connection) {
+            // Queued before the host closed this connection: never act on it (CORE-A-04).
+            tracing::debug!(
+                connection,
+                "discarding a frame from a connection the host closed"
+            );
+            return;
+        }
         if value.get("method").is_none() && self.client == Some(connection) {
             match protocol::parse_response(value) {
                 Ok(response) => {
@@ -720,6 +855,7 @@ impl Host {
             }
         };
         let reply = request.id.as_ref().map(|id| (connection, id.clone()));
+        self.trace_received(connection, &request.method, reply.as_ref());
         if request.method == "host.hello" {
             let outcome = self.hello(connection, &request.params);
             if let Some(reply) = reply {
@@ -907,10 +1043,20 @@ impl Host {
             self.lifecycle.phase(),
             Phase::Starting | Phase::Connecting | Phase::Initializing
         ) {
-            // The app is not ready to answer policy callbacks yet. Closing its
-            // startup window is a cancellation of startup, with the same
-            // bounded cooperative shutdown used after an accepted quit.
-            self.begin_shutdown();
+            // The app is not ready to answer policy callbacks yet. A backend that
+            // discards one of several windows it created (NHK-CROSS-0002) closes
+            // just that window. Closing the last usable window, or any user close,
+            // is a cancellation of startup, with the same bounded cooperative
+            // shutdown used after an accepted quit.
+            let others_remain = self
+                .windows
+                .iter()
+                .any(|(id, window)| id != window_id && !window.closing);
+            if reason == "backend_request" && others_remain {
+                self.remove_window(window_id);
+            } else {
+                self.begin_shutdown();
+            }
             return Ok(());
         }
         if self.standalone || self.lifecycle.phase() == Phase::Failed {
@@ -939,6 +1085,12 @@ impl Host {
             self.refresh(window_id);
             self.window_event_message(window_id, "close_requested", json!({"reason":reason}));
             if let Some(client) = self.client {
+                tracing::trace!(
+                    event = "request.sent",
+                    method = "window.before_close",
+                    id = decision.decision.id.as_str(),
+                    window_id,
+                );
                 self.send(
                     client,
                     json!({"jsonrpc":"2.0","id":decision.decision.id,"method":"window.before_close",
@@ -984,6 +1136,11 @@ impl Host {
             );
         }
         if let Some(client) = self.client {
+            tracing::trace!(
+                event = "request.sent",
+                method = "app.before_quit",
+                id = start.decision.id.as_str(),
+            );
             self.send(client, json!({"jsonrpc":"2.0","id":start.decision.id,"method":"app.before_quit","params":{"reason":reason}}));
         }
         self.status_all("Waiting for application quit decision. Ctrl+Shift+Q forces shutdown.");
@@ -1238,6 +1395,8 @@ mod tests {
             backend: None,
             _instance: None,
             client: Some(7),
+            send_failure: None,
+            dropped_connections: Default::default(),
             connected: HashMap::new(),
             token: String::new(),
             wake: Arc::new(|| {}),
@@ -1257,11 +1416,28 @@ mod tests {
             deferred_clipboard_reads: Vec::new(),
             exit_code: Arc::new(AtomicI32::new(0)),
             launcher_gone: None,
+            launcher_acknowledged: Arc::new(AtomicBool::new(false)),
+            rpc_started: HashMap::new(),
             presentation: None,
             preferences: platform::preferences::PreferenceWatch::new(false, Arc::new(|| {})),
             preference_revision: 0,
             #[cfg(test)]
             observed_notifications: Vec::new(),
+        }
+    }
+
+    /// CORE-A-03: with `instance = "multiple"` the public endpoint name must carry no token bits.
+    #[test]
+    fn instance_key_is_independent_of_the_token() {
+        for _ in 0..8 {
+            let (token, key) = session_credentials(None).unwrap();
+            assert_eq!(token.len(), 64);
+            assert_eq!(key.len(), 24);
+            assert!(key.bytes().all(|b| b.is_ascii_hexdigit()), "{key}");
+            assert!(
+                !token.contains(&key[..8]),
+                "endpoint name {key} shares material with the token"
+            );
         }
     }
 
@@ -1302,6 +1478,74 @@ mod tests {
             .is_ok());
     }
 
+    /// CORE-A-04: once the host drops a backend that cannot receive its bounded output, requests
+    /// already queued from that connection must not run, and the recorded failure must name the
+    /// real cause (not a later "Backend exited" or "connection lost").
+    #[test]
+    fn output_overflow_fails_with_its_cause_and_drops_queued_requests() {
+        let app = format!("org.nativehtmlkit.host.overflow.{}", std::process::id());
+        let lock = InstanceLock::acquire(&app).unwrap();
+        let server = Server::bind(&app, &lock.instance_key, Arc::new(|| {})).unwrap();
+        let mut stream =
+            crate::platform::NativeStream::connect(&server.endpoint, Duration::from_secs(5))
+                .unwrap();
+        let connection = match server
+            .incoming
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+        {
+            TransportEvent::Connected(id) => id,
+            other => panic!("unexpected {other:?}"),
+        };
+        // A request that was already queued when the host gives up on the connection.
+        protocol::write_frame(
+            &mut stream,
+            &json!({"jsonrpc":"2.0","id":"late","method":"window.create","params":{"title":"late"}}),
+        )
+        .unwrap();
+        let queued = match server
+            .incoming
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+        {
+            TransportEvent::Message(id, value) => {
+                assert_eq!(id, connection);
+                value
+            }
+            other => panic!("unexpected {other:?}"),
+        };
+        let mut host = controller(true);
+        host.server = Some(server);
+        host.client = Some(connection);
+        // The backend never reads: fill the bounded outbound queue until a send fails.
+        let big = "x".repeat(1024 * 1024);
+        for _ in 0..64 {
+            host.notify("test.flood", json!({ "payload": big }));
+            if host.client.is_none() {
+                break;
+            }
+        }
+        assert_eq!(
+            host.client, None,
+            "the overflowing backend is no longer the client"
+        );
+        let windows = host.windows.len();
+        host.message(connection, queued, None);
+        assert_eq!(
+            host.windows.len(),
+            windows,
+            "a request from the dropped connection ran"
+        );
+        host.pump(None);
+        let failure = host.lifecycle.failure().unwrap_or_default().to_owned();
+        assert!(
+            failure.contains("cannot receive"),
+            "wrong failure cause: {failure:?}"
+        );
+        assert_eq!(host.exit_code.load(Ordering::Relaxed), 1);
+        drop(stream);
+    }
+
     #[test]
     fn launcher_exit_during_pending_quit_shuts_down_without_approving_it() {
         let mut host = controller(true);
@@ -1333,6 +1577,31 @@ mod tests {
         assert_eq!(host.lifecycle.phase(), Phase::Quitting);
         assert_eq!(host.decisions.pending_count(), 0);
         assert!(host.quit_deadline.is_some());
+    }
+
+    /// NHK-CROSS-0002: before app.ready a backend may discard one of several windows; only
+    /// its last window (or a user close of any window) cancels startup.
+    #[test]
+    fn backend_close_before_ready_cancels_startup_only_for_the_last_window() {
+        let mut host = controller(false);
+        add_window(&mut host, "one");
+        add_window(&mut host, "two");
+        host.request_close("two", "backend_request").unwrap();
+        assert_eq!(host.lifecycle.phase(), Phase::Initializing);
+        assert!(host.quit_deadline.is_none());
+        assert_eq!(host.windows.keys().collect::<Vec<_>>(), ["one"]);
+        host.request_close("one", "backend_request").unwrap();
+        assert_eq!(host.lifecycle.phase(), Phase::Quitting);
+
+        let mut host = controller(false);
+        add_window(&mut host, "one");
+        add_window(&mut host, "two");
+        host.request_close("two", "native_close").unwrap();
+        assert_eq!(
+            host.lifecycle.phase(),
+            Phase::Quitting,
+            "a user close during startup still cancels it"
+        );
     }
 
     #[test]

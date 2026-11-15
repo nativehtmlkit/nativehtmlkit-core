@@ -4,7 +4,7 @@
 # Checks that patches/taffy/taffy/ is exactly DioxusLabs/taffy @ fca167cf659b8bf48019d0dea90624109a78103f
 # (the files the vendored copy keeps: Cargo.toml, README.md, LICENSE, src/, examples/ and
 # benches/dummy_benchmark.rs) with P-008-1.patch … P-008-6.patch applied (`patch -p1`), so the patch file, the vendored tree that
-# `[patch."https://github.com/DioxusLabs/taffy"]` in Cargo.toml builds, and the upstream base cannot drift.
+# the workspace builds through a direct `path` dependency in Cargo.toml, and the upstream base cannot drift.
 #
 # The pristine tree comes from the cargo git checkout of the locked revision (or UI4ME_UPSTREAM_SOURCE;
 # the revision is recorded in the patch header).

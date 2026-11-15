@@ -123,6 +123,9 @@ impl Lifecycle {
                 to,
             });
         }
+        if self.phase != to {
+            tracing::debug!(event = "lifecycle.phase", from = ?self.phase, to = ?to);
+        }
         self.phase = to;
         Ok(())
     }

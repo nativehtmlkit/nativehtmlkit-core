@@ -1,25 +1,35 @@
 # NativeHTMLKit host protocol, version 1
 
 **Status: v1 wire contract locked as a release candidate (`1.0-rc`), not yet declared public-stable.**
-The method/op matrix and envelope behavior below are generated from the Rust handlers and locked
-by a runtime golden that passes identically against the compiled host on Linux (Unix socket) and
-Windows (named pipe). The *stable* declaration additionally requires the open native gates in
+The parameter schemas and the 81 `document.command` ops are generated from the Rust serde types;
+the method list is maintained in the generator and checked against the host's dispatch `match`
+arms. Envelope behavior and result shapes are locked by a runtime golden run against the compiled
+host on Linux (Unix socket) and Windows (named pipe). The *stable* declaration additionally requires the open native gates in
 [`CONFORMANCE-ROADMAP.md`](CONFORMANCE-ROADMAP.md) (IME, DPI scaling, screen-reader journeys and
 native dialogs/clipboard/drag-drop GUI evidence). Until then SDK authors may build against v1, but
 must treat the items listed there as unqualified.
 
 | Artifact | What it is | Authority |
 |---|---|---|
-| [`v1/method-matrix.json`](v1/method-matrix.json) | Every message: direction, kind, Rust param type, unknown-member policy | Generated from Rust (`scripts/generate-protocol-contract.py`) |
+| [`v1/method-matrix.json`](v1/method-matrix.json) | Every message: direction, kind, Rust param type, unknown-member policy | `scripts/generate-protocol-contract.py`: param types parsed from Rust; method list hand-maintained and `--check`ed against the dispatch arms |
 | [`v1/schemas/methods/*.params.schema.json`](v1/schemas/methods) | JSON Schema (2020-12) per client→host method | Generated from the serde types |
 | [`v1/schemas/document-command.schema.json`](v1/schemas/document-command.schema.json) | All 81 `document.command` ops (`oneOf`, tag `op`) | Generated from `DocumentCommand` |
-| [`v1/conformance/golden.json`](v1/conformance/golden.json) | 327 observed outcomes (result members or error code) | Runtime: `crates/nativehtmlkit-host/tests/protocol_conformance.rs` |
+| [`v1/conformance/golden.json`](v1/conformance/golden.json) | 338 cases: error code, or result member kinds + boolean values / array length (see below) | Runtime: `crates/nativehtmlkit-host/tests/protocol_conformance.rs` |
 | [`COMPATIBILITY.md`](COMPATIBILITY.md) | Versioning and compatibility policy | Project decision |
 | [`SDK-AUTHORING.md`](SDK-AUTHORING.md) | How to write an independent client | Guide |
 
-`cargo test -p nativehtmlkit-host --test protocol_conformance` fails on any behavioral drift;
-`python3 scripts/generate-protocol-contract.py --check` (run by `scripts/check-architecture.py`)
-fails when the Rust types change without regenerating the schemas.
+`cargo test -p nativehtmlkit-host --test protocol_conformance` fails when an observed outcome
+differs from the golden. What it compares, per case: an error's code (and whether the error is
+uncorrelated, `id: null`); for a success, the JSON kind of every **top-level** result member and
+the value of every **boolean** member, an array result's **length**, or a boolean/null result's
+value. It does **not** compare string or number values, nested object/array contents, or
+notification payloads beyond their member names; those are covered (partially) by
+`host_integration.rs` and the crate unit tests. A small, commented exclusion list in the test
+may reduce a platform-dependent boolean to kind-only (currently empty). `app.force_quit` is
+driven in a separate host run (host exit status 1, backend killed before it can act on the
+reply). `python3 scripts/generate-protocol-contract.py --check` (run by
+`scripts/check-architecture.py`) fails when the Rust types change without regenerating the
+schemas, or when the dispatch arms and the generator's method list diverge.
 
 ## 1. Launch and transport
 
@@ -41,7 +51,12 @@ A manifest's `[backend.env]` may not set the four transport names (in either the
 rejected at load (case-insensitively). On Linux the host runs under a transient `systemd --user` unit
 (`KillMode=control-group`) bound to its launcher; on Windows the backend runs in a kill-on-close Job
 Object. A launcher that must not be outlived by the host should bind the host to itself
-(Linux `PR_SET_PDEATHSIG`, Windows Job Object) — the CLI does.
+(Linux `PR_SET_PDEATHSIG`, Windows Job Object) — the CLI does. On Linux, when the launcher exits
+the host begins the normal bounded shutdown; if its event loop has not begun that shutdown within
+`max(shutdown_timeout_ms + 1 s, 2 s)` (a hung UI thread), a watchdog thread SIGKILLs the backend
+process group, writes one `launcher.watchdog` error record to stderr and exits the host with
+status 1; the unit's `KillMode=control-group` then removes any remaining process (see §9 for the
+stopped-process limitation).
 
 ## 2. Framing
 
@@ -130,6 +145,19 @@ event}`, `document.error`, `request.cancelled {id, reason}`, `app.activated`,
 `path` (identified bubbling route) and type-specific members; clients should match their target
 against `element` *or* `path`.
 
+**Closing windows before `app.ready`** (phases before running; no `{allow}` decisions are asked):
+a backend `window.request_close` of a window while at least one other usable window remains closes
+just that window (`window.event {type:"closed"}`) and startup continues. A backend close of the last
+usable window, or a user's native close of *any* window during startup, cancels startup: the host
+sends `app.shutdown` and stops.
+
+**No `closed` event for the last window (v1 behaviour).** When an allowed close of the last usable
+window starts shutdown (`window.before_close` allowed → `app.before_quit {reason:"last_window"}`
+allowed, or a startup cancellation as above), no `window.event {type:"closed"}` is sent for that
+window. `app.shutdown` implies every window is closed: clients must treat all window and document
+handles as stale from that point (later window calls fail with `-32008`). Pinned by
+`host_integration.rs` `last_window_close_shuts_down_without_a_closed_event`.
+
 ## 8. Markup and resource names
 
 `ui4me-res://`, `ui4me-bitmap://` and `data-ui4me-{drag,no-drag,resize,drop}` remain valid in v1.
@@ -139,3 +167,32 @@ the CSS profile (`ui4me-desktop-1.0`, `ui4me-css/1`), the diagnostics schema (`u
 and paint-tier ids keep their v1 values.
 
 There is no JavaScript, HTTP loading or browser engine; markup is parsed and rendered by the host.
+
+## 9. Known limitations (v1)
+
+- **Close/quit decisions have no host-side deadline.** After the host sends `window.before_close`
+  or `app.before_quit` it waits for the `{allow}` answer indefinitely; repeated native close
+  requests coalesce into the pending decision. A backend that never answers keeps the window or
+  application open. The escape is a forced quit: `app.force_quit` from the backend, or the
+  user's force-quit shortcut (Ctrl+Shift+Q) in a document window, which ends the session without
+  asking (the backend is killed). Clients must answer every decision promptly. The
+  `app.shutdown {deadline_ms}` deadline applies only once shutdown has begun. (Audit CORE-A-05;
+  not changed within v1 because it is protocol-visible behaviour.)
+- **A stopped host cannot be bounded from inside itself (Linux).** The launcher watchdog (§1) runs
+  on a host thread, so it ends a host whose *event loop* is blocked, but not a host whose whole
+  process is stopped (`SIGSTOP`, a debugger halt) or otherwise not scheduled: no thread runs to act
+  on launcher loss, and `systemd-run --wait` does not stop the unit when its client dies. Such a
+  host, its backend and its unit remain until the process is continued (it then exits within the
+  bound) or killed externally. A launcher that must survive this case has to kill the host itself
+  (the CLI kills the `host.diagnostics` `pid`). (NHK-CROSS-0001 residual; accepted for v1.)
+
+## 10. Host diagnostics (not part of the wire contract)
+
+`NATIVEHTMLKIT_DIAGNOSTICS=normal|debug|trace` and `NATIVEHTMLKIT_DIAGNOSTIC_SESSION_ID` control the
+host's structured JSON stderr records (see the repository `README.md` "Local diagnostics" for the
+record names). At `trace` the host records request receipt/completion (method, id, duration, error
+code), notifications it sends (method; for `window.event`/`document.event` only the event type and
+window/document ids) and host-originated requests, never params, results or values. The stderr sink
+is bounded and lossy by design: under load trace records can be dropped, and `host.diagnostics`
+reports the drop counters in `logging` (`sink_dropped_records`, `backend_omitted_records`). Record
+shapes may gain members; they are diagnostics, not an API.

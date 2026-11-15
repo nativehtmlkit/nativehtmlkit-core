@@ -11,6 +11,54 @@ use tempfile::TempPath;
 
 pub(super) const MAX_BITMAP_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_BITMAPS: usize = 8;
+/// CORE-A-02: all live-bitmap transports of this host together (tmpfs plus host copies). Without
+/// it, 16 documents x 64 MiB could pin 1 GiB of the user's runtime filesystem.
+const MAX_HOST_BITMAP_BYTES: u64 = 256 * 1024 * 1024;
+/// Transport file names are `ui4me-bitmap-<host pid>-<random>` (the legacy prefix is kept so
+/// existing leak checks still match).
+const TRANSPORT_PREFIX: &str = "ui4me-bitmap-";
+
+/// CORE-A-02: remove transport files left behind by hosts that died before their backend's first
+/// `bitmap.present` (SIGKILL, crash). Only files whose name carries the pid of a process that no
+/// longer exists are removed; files of live hosts, legacy unnamed files and anything that is not a
+/// regular file are left alone. Returns the number of files removed.
+pub(super) fn sweep_stale_transports() -> usize {
+    match platform::bitmap_directory() {
+        Ok(dir) => sweep_stale_transports_in(&dir, platform::process_alive),
+        Err(_) => 0,
+    }
+}
+
+fn sweep_stale_transports_in(dir: &std::path::Path, alive: impl Fn(u32) -> bool) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    let own = std::process::id();
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(pid) = name
+            .to_str()
+            .and_then(|n| n.strip_prefix(TRANSPORT_PREFIX))
+            .and_then(|rest| rest.split_once('-'))
+            .filter(|(pid, _)| !pid.is_empty() && pid.bytes().all(|b| b.is_ascii_digit()))
+            .and_then(|(pid, _)| pid.parse::<u32>().ok())
+        else {
+            continue;
+        };
+        if pid == own || alive(pid) {
+            continue;
+        }
+        let path = entry.path();
+        let regular = std::fs::symlink_metadata(&path)
+            .map(|m| m.file_type().is_file())
+            .unwrap_or(false);
+        if regular && std::fs::remove_file(&path).is_ok() {
+            removed += 1;
+        }
+    }
+    removed
+}
 
 pub(super) struct Bitmap {
     file: File,
@@ -113,11 +161,10 @@ impl Bitmap {
         if total > MAX_BITMAP_BYTES {
             return Err(RpcError::busy("Bitmap transport allocation exceeds 64 MiB"));
         }
-        let dir = std::env::var_os("XDG_RUNTIME_DIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(std::env::temp_dir);
+        let dir = platform::bitmap_directory().map_err(|e| RpcError::unavailable(e.to_string()))?;
+        let prefix = format!("{TRANSPORT_PREFIX}{}-", std::process::id());
         let file = tempfile::Builder::new()
-            .prefix("ui4me-bitmap-")
+            .prefix(&prefix)
             .tempfile_in(dir)
             .map_err(|e| RpcError::unavailable(e.to_string()))?;
         file.as_file()
@@ -198,6 +245,13 @@ impl Host {
             "bitmap.create" => {
                 let req: Create = serde_json::from_value(params)
                     .map_err(|e| RpcError::invalid_params(e.to_string()))?;
+                let host_existing: u64 = self
+                    .windows
+                    .values()
+                    .filter_map(|w| w.document.as_ref())
+                    .flat_map(|d| d.bitmaps.values())
+                    .map(|v| v.slot_bytes * u64::from(v.slots))
+                    .sum();
                 let window = self
                     .windows
                     .get_mut(&req.window_id)
@@ -223,6 +277,11 @@ impl Host {
                 if total_existing + total_new > MAX_BITMAP_BYTES {
                     return Err(RpcError::busy(
                         "Document live bitmap transport budget exceeded",
+                    ));
+                }
+                if host_existing + total_new > MAX_HOST_BITMAP_BYTES {
+                    return Err(RpcError::busy(
+                        "Host live bitmap transport budget (256 MiB) exceeded",
                     ));
                 }
                 // Register transparent pixels immediately so the intrinsic size
@@ -332,6 +391,74 @@ mod tests {
         assert_eq!(b.slot_bytes, 128);
         assert!(b.read(2, 1).is_err());
         assert!(b.read(0, 0).is_err());
+    }
+
+    /// CORE-A-02: the transport lives in the host's private directory (Linux: the owner-checked
+    /// 0700 `$XDG_RUNTIME_DIR/nativehtmlkit-host`) and its name carries the host pid, so a later
+    /// host can tell a leaked file of a dead host from a live one.
+    #[test]
+    fn transport_file_is_private_and_names_the_host_pid() {
+        let req = Create {
+            window_id: "w".into(),
+            document_id: "d".into(),
+            bitmap_id: "x".into(),
+            width: 2,
+            height: 2,
+            slots: 2,
+            pixel_format: "RGBA8".into(),
+        };
+        let b = Bitmap::new(&req).unwrap();
+        let path = b.path.as_ref().unwrap().to_path_buf();
+        #[cfg(target_os = "linux")]
+        assert_eq!(
+            path.parent().unwrap(),
+            crate::platform::runtime_directory().unwrap(),
+            "transport must be inside the private runtime directory"
+        );
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let prefix = format!("ui4me-bitmap-{}-", std::process::id());
+        assert!(name.starts_with(&prefix), "{name} lacks {prefix}");
+    }
+
+    /// CORE-A-02: the startup sweep removes only regular files of dead hosts.
+    #[test]
+    fn startup_sweep_removes_only_files_of_dead_hosts() {
+        let dir = tempfile::tempdir().unwrap();
+        let own = std::process::id();
+        let names = [
+            ("ui4me-bitmap-4000001-AbC123".to_owned(), false), // dead host: removed
+            (format!("ui4me-bitmap-{own}-AbC123"), true),      // this host
+            ("ui4me-bitmap-4000002-AbC123".to_owned(), true),  // live host
+            ("ui4me-bitmap-ISPGaH".to_owned(), true),          // legacy name, owner unknown
+            ("ui4me-bitmap--x".to_owned(), true),
+            ("ui4me-bitmap-12a-x".to_owned(), true),
+            ("unrelated-4000001-x".to_owned(), true),
+        ];
+        for (name, _) in &names {
+            std::fs::write(dir.path().join(name), b"x").unwrap();
+        }
+        std::fs::create_dir(dir.path().join("ui4me-bitmap-4000001-dir")).unwrap();
+        let alive = |pid: u32| pid == 4_000_002;
+        assert_eq!(sweep_stale_transports_in(dir.path(), alive), 1);
+        for (name, kept) in &names {
+            assert_eq!(dir.path().join(name).exists(), *kept, "{name}");
+        }
+        assert!(dir.path().join("ui4me-bitmap-4000001-dir").is_dir());
+    }
+
+    #[test]
+    fn process_liveness_probe() {
+        let _serial = platform::process_test_guard();
+        assert!(platform::process_alive(std::process::id()));
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("--list")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let pid = child.id();
+        child.wait().unwrap();
+        assert!(!platform::process_alive(pid), "a reaped child is not alive");
     }
 
     /// A killed host must not leave its tmpfs transport behind: the path is

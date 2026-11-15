@@ -1,6 +1,8 @@
 //! owner: 007-resources (T011, T039) — the file guard.
 //!
-//! Open, then verify: the file is opened normally (links are followed), then the **opened handle's**
+//! Check, open, then verify: root membership is first decided without opening anything (CORE-A-01:
+//! the path as written or its resolved existing prefix; UNC only under a UNC root). The file is then
+//! opened normally (links are followed), then the **opened handle's**
 //! final path is compared with the canonical roots by path components, then `fstat` must report a
 //! regular file and the size is checked against the kind's limit before reading. Path-string checks
 //! alone are never trusted, so a symlink or junction swapped between check and open cannot escape.
@@ -104,8 +106,10 @@ fn finish(file: File, final_path: PathBuf, max_bytes: u64) -> Result<VerifiedFil
 
 /// Open `path` for a document request and verify it against `roots` (open-then-verify).
 ///
-/// * not existing: `FILE_NOT_FOUND`; unreadable, outside every root, or not a regular file:
-///   `RESOURCE_DENIED`; larger than `max_bytes`: `SIZE_LIMIT`.
+/// * outside every root (decided before the open; existing or not): `RESOURCE_DENIED` with one
+///   uniform message; inside a root but not existing: `FILE_NOT_FOUND`; unreadable, resolving
+///   outside every root after the open, or not a regular file: `RESOURCE_DENIED`; larger than
+///   `max_bytes`: `SIZE_LIMIT`.
 pub fn open_verified(
     path: &Path,
     roots: &[PathBuf],
@@ -115,32 +119,62 @@ pub fn open_verified(
         return Err(status(Code::ResourceDenied, "invalid path"));
     }
     let ci = cfg!(windows);
+    // CORE-A-01: decide root membership *before* anything is opened, so a path outside every root
+    // (a device node, an automount trigger, a FIFO, or on Windows an SMB share) is never touched.
+    // One message for every outside-root case: the answer must not reveal what exists beyond the
+    // roots (decision D-007-02).
+    if !within_roots_lexically(path, roots, ci) {
+        return Err(status(Code::ResourceDenied, OUTSIDE_ROOTS));
+    }
+    // Defence in depth (symlink swapped after the check, TOCTOU): verify the opened handle.
     let (file, final_path) = match platform_open(path) {
         Ok(v) => v,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            // A missing file outside every root is a denial, not "not found": the answer must not
-            // reveal what exists beyond the roots (decision D-007-02).
-            return if roots
-                .iter()
-                .any(|r| path_within(&resolve_existing_prefix(path), r, ci))
-            {
-                Err(status(Code::FileNotFound, "file not found"))
-            } else {
-                Err(status(
-                    Code::ResourceDenied,
-                    "path is outside every configured root",
-                ))
-            };
+            return Err(status(Code::FileNotFound, "file not found"));
         }
         Err(e) => return Err(status(io_code(&e), format!("open failed: {e}"))),
     };
     if !roots.iter().any(|r| path_within(&final_path, r, ci)) {
-        return Err(status(
-            Code::ResourceDenied,
-            "file is outside every configured root",
-        ));
+        return Err(status(Code::ResourceDenied, OUTSIDE_ROOTS));
     }
     finish(file, final_path, max_bytes)
+}
+
+const OUTSIDE_ROOTS: &str = "path is outside every configured root";
+
+/// The pre-open membership decision.
+///
+/// * Unix: the path's longest existing prefix is resolved (`realpath`: `lstat`/`readlink` only,
+///   nothing is opened) and compared with the roots, so a symlink inside a root that points
+///   outside is refused before the open as well.
+/// * Windows: `canonicalize` itself opens a (zero-access) handle, so a path that lies under a
+///   root as written (no `.`/`..` components) is admitted without resolving it; only other paths
+///   are resolved. A UNC path is admitted only under a UNC root, judged on the string alone
+///   (resolving it would already contact the server).
+fn within_roots_lexically(path: &Path, roots: &[PathBuf], ci: bool) -> bool {
+    if cfg!(windows) {
+        let p = path.to_string_lossy();
+        let rs: Vec<String> = roots
+            .iter()
+            .map(|r| r.to_string_lossy().into_owned())
+            .collect();
+        let rs: Vec<&str> = rs.iter().map(String::as_str).collect();
+        if !windows::unc_permitted(&p, &rs) {
+            return false;
+        }
+        if windows::is_unc(&p) {
+            // Covered by a UNC root lexically; the post-open check verifies the final path.
+            return true;
+        }
+    }
+    let plain = cfg!(windows)
+        && path
+            .components()
+            .all(|c| !matches!(c, Component::CurDir | Component::ParentDir));
+    (plain && roots.iter().any(|r| path_within(path, r, ci))) || {
+        let resolved = resolve_existing_prefix(path);
+        roots.iter().any(|r| path_within(&resolved, r, ci))
+    }
 }
 
 /// Canonicalise the longest existing prefix of `path` and re-append the missing tail, so a
@@ -181,14 +215,24 @@ pub fn open_trusted(path: &Path, max_bytes: u64) -> Result<VerifiedFile, Status>
     finish(file, final_path, max_bytes)
 }
 
-#[cfg(unix)]
-fn platform_open(path: &Path) -> std::io::Result<(File, PathBuf)> {
-    unix::open_with_final_path(path)
+#[cfg(test)]
+thread_local! {
+    /// Every path handed to `platform_open` on this thread (test-only probe: proves which paths
+    /// the guard actually opened, not just which it reported as denied).
+    static OPENED: std::cell::RefCell<Vec<PathBuf>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
-#[cfg(windows)]
 fn platform_open(path: &Path) -> std::io::Result<(File, PathBuf)> {
-    windows::open_with_final_path(path)
+    #[cfg(test)]
+    OPENED.with(|o| o.borrow_mut().push(path.to_path_buf()));
+    #[cfg(unix)]
+    {
+        unix::open_with_final_path(path)
+    }
+    #[cfg(windows)]
+    {
+        windows::open_with_final_path(path)
+    }
 }
 
 /// Read the whole file, never more than `max_bytes` (the file may grow after `fstat`).
@@ -210,6 +254,118 @@ pub fn read_limited(file: &File, max_bytes: u64) -> Result<Vec<u8>, Status> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn take_opened() -> Vec<PathBuf> {
+        OPENED.with(|o| std::mem::take(&mut *o.borrow_mut()))
+    }
+
+    /// A fresh `<tmp>/nhk-fsguard-<pid>-<n>/{root,outside}` tree.
+    #[cfg(unix)]
+    fn scratch() -> (PathBuf, PathBuf, PathBuf) {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static N: AtomicU32 = AtomicU32::new(0);
+        let base = std::env::temp_dir().join(format!(
+            "nhk-fsguard-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("root")).unwrap();
+        std::fs::create_dir_all(base.join("outside")).unwrap();
+        let root = std::fs::canonicalize(base.join("root")).unwrap();
+        let outside = std::fs::canonicalize(base.join("outside")).unwrap();
+        (base, root, outside)
+    }
+
+    /// CORE-A-01: a file outside every root must be denied without ever being opened, and the
+    /// denial must not depend on whether the file exists.
+    #[cfg(unix)]
+    #[test]
+    fn outside_root_is_denied_without_opening() {
+        let (base, root, outside) = scratch();
+        let secret = outside.join("secret.png");
+        std::fs::write(&secret, b"x").unwrap();
+        take_opened();
+        let existing = open_verified(&secret, std::slice::from_ref(&root), 1024).unwrap_err();
+        assert!(take_opened().is_empty(), "an outside-root file was opened");
+        let missing = open_verified(
+            &outside.join("missing.png"),
+            std::slice::from_ref(&root),
+            1024,
+        )
+        .unwrap_err();
+        assert!(take_opened().is_empty(), "an outside-root path was opened");
+        assert_eq!(existing.code, Code::ResourceDenied);
+        assert_eq!(missing.code, Code::ResourceDenied);
+        assert_eq!(existing.message, missing.message, "existence oracle");
+        // A FIFO outside the root: opening it would be a side effect on a foreign object.
+        let fifo = outside.join("pipe.png");
+        let made = std::process::Command::new("mkfifo").arg(&fifo).status();
+        if made.map(|s| s.success()).unwrap_or(false) {
+            let e = open_verified(&fifo, std::slice::from_ref(&root), 1024).unwrap_err();
+            assert_eq!(e.code, Code::ResourceDenied);
+            assert_eq!(e.message, existing.message);
+            assert!(take_opened().is_empty(), "an outside-root FIFO was opened");
+        }
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    /// A symlink inside the root that points outside stays refused (Unix: already by the
+    /// resolved pre-open check; the opened handle's final path is still verified as defence in
+    /// depth against a swap after the check), while ordinary in-root and aliased paths still work.
+    #[cfg(unix)]
+    #[test]
+    fn symlink_escape_is_still_rejected() {
+        let (base, root, outside) = scratch();
+        std::fs::write(outside.join("secret.png"), b"x").unwrap();
+        std::os::unix::fs::symlink(outside.join("secret.png"), root.join("link.png")).unwrap();
+        std::fs::write(root.join("ok.png"), b"ok").unwrap();
+        take_opened();
+        let e =
+            open_verified(&root.join("link.png"), std::slice::from_ref(&root), 1024).unwrap_err();
+        assert_eq!(e.code, Code::ResourceDenied);
+        assert_eq!(e.message, OUTSIDE_ROOTS);
+        assert!(take_opened().is_empty(), "the escaping symlink was opened");
+        let ok = open_verified(&root.join("ok.png"), std::slice::from_ref(&root), 1024).unwrap();
+        assert_eq!(ok.final_path, root.join("ok.png"));
+        // A path that reaches the root through a symlinked ancestor is still inside.
+        std::os::unix::fs::symlink(&root, base.join("alias")).unwrap();
+        assert!(
+            open_verified(
+                &base.join("alias/ok.png"),
+                std::slice::from_ref(&root),
+                1024
+            )
+            .is_ok()
+        );
+        let missing =
+            open_verified(&root.join("nope.png"), std::slice::from_ref(&root), 1024).unwrap_err();
+        assert_eq!(missing.code, Code::FileNotFound);
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    /// CORE-A-01 (Windows): a UNC path is denied without an open (no SMB connection) unless a
+    /// configured root is itself UNC and lexically covers it.
+    #[cfg(windows)]
+    #[test]
+    fn unc_is_denied_without_opening() {
+        let root = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+        let root = crate::policy::strip_verbatim(root);
+        take_opened();
+        for p in [r"\\192.0.2.10\s\a.png", r"//192.0.2.10/s/a.png"] {
+            let e = open_verified(Path::new(p), std::slice::from_ref(&root), 1024).unwrap_err();
+            assert_eq!(e.code, Code::ResourceDenied, "{p}");
+        }
+        let unc_root = PathBuf::from(r"\\192.0.2.10\other");
+        let e = open_verified(
+            Path::new(r"\\192.0.2.10\s\a.png"),
+            std::slice::from_ref(&unc_root),
+            1024,
+        )
+        .unwrap_err();
+        assert_eq!(e.code, Code::ResourceDenied);
+        assert!(take_opened().is_empty(), "a UNC path was opened");
+    }
 
     #[test]
     fn components_not_string_prefixes() {

@@ -53,6 +53,17 @@ impl Harness {
     }
 
     fn run(&self, scenario: &str, expected_exit: i32) -> (Value, String) {
+        self.run_with_diagnostics(scenario, expected_exit, None)
+    }
+
+    /// `diagnostics`: the user-facing `NATIVEHTMLKIT_DIAGNOSTICS` level and session id, used
+    /// instead of the harness's explicit `RUST_LOG` override (which is then removed).
+    fn run_with_diagnostics(
+        &self,
+        scenario: &str,
+        expected_exit: i32,
+        diagnostics: Option<(&str, &str)>,
+    ) -> (Value, String) {
         let directory = self.directory.path();
         let evidence_path = directory.join("evidence.json");
         let _ = fs::remove_file(&evidence_path);
@@ -99,12 +110,20 @@ impl Harness {
         fs::write(&manifest, toml::to_string(&config).unwrap()).unwrap();
         let output_path = directory.join("host-output.log");
         let output = File::create(&output_path).unwrap();
+        let mut command = Command::new(env!("CARGO_BIN_EXE_nativehtmlkit-host"));
+        command
+            .args(["run", "--headless", "--app"])
+            .arg(&manifest)
+            .env("XDG_RUNTIME_DIR", directory.join("runtime"));
+        match diagnostics {
+            Some((level, session)) => command
+                .env_remove("RUST_LOG")
+                .env("NATIVEHTMLKIT_DIAGNOSTICS", level)
+                .env("NATIVEHTMLKIT_DIAGNOSTIC_SESSION_ID", session),
+            None => command.env("RUST_LOG", "nativehtmlkit_host=info"),
+        };
         let mut host = RunningHost(
-            Command::new(env!("CARGO_BIN_EXE_nativehtmlkit-host"))
-                .args(["run", "--headless", "--app"])
-                .arg(&manifest)
-                .env("XDG_RUNTIME_DIR", directory.join("runtime"))
-                .env("RUST_LOG", "nativehtmlkit_host=info")
+            command
                 .stdin(Stdio::null())
                 .stdout(Stdio::from(output.try_clone().unwrap()))
                 .stderr(Stdio::from(output))
@@ -234,10 +253,145 @@ fn startup_window_can_be_closed_before_the_backend_becomes_ready() {
     Harness::new().run("startup_close", 0);
 }
 
+/// NHK-CROSS-0002: a backend-initiated close of one of several windows before `app.ready`
+/// closes only that window; startup continues and the app quits normally (exit 0).
+#[test]
+fn backend_close_of_a_secondary_window_before_ready_keeps_startup() {
+    Harness::new().run("startup_close_secondary", 0);
+}
+
+/// NHK-CROSS-0003 (documented v1 behaviour): an allowed close of the last usable window
+/// starts shutdown without a `window.event {type:"closed"}` for that window.
+#[test]
+fn last_window_close_shuts_down_without_a_closed_event() {
+    Harness::new().run("last_window_close", 0);
+}
+
+/// Value that must never appear in host diagnostics, at any level.
+const TRACE_SENTINEL: &str = "nhk-sentinel-3f9a17-do-not-log";
+
+fn records(output: &str) -> Vec<Value> {
+    output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            serde_json::from_str(line)
+                .unwrap_or_else(|error| panic!("non-JSON host record {line:?}: {error}"))
+        })
+        .collect()
+}
+
+fn with_event<'a>(records: &'a [Value], event: &str) -> Vec<&'a Value> {
+    records
+        .iter()
+        .filter(|record| record["fields"]["event"] == event)
+        .collect()
+}
+
+/// NHK-CROSS-0004: at `trace` the host records RPC/notification metadata (never values);
+/// at `normal` none of these records exist.
+#[test]
+fn trace_records_rpc_and_event_metadata_without_values() {
+    let harness = Harness::new();
+    let session = format!("nhk-it-trace.{}", std::process::id());
+    let (evidence, output) =
+        harness.run_with_diagnostics("trace_coverage", 0, Some(("trace", &session)));
+    let token = evidence["token"].as_str().unwrap();
+    assert!(
+        !output.contains(TRACE_SENTINEL),
+        "sentinel leaked:\n{output}"
+    );
+    assert!(!output.contains(token), "launch token leaked");
+    let all = records(&output);
+    for record in &all {
+        assert_eq!(
+            record["diagnostic_session_id"],
+            session.as_str(),
+            "{record}"
+        );
+    }
+    let received = with_event(&all, "rpc.received");
+    let completed = with_event(&all, "rpc.completed");
+    // The sink is lossy by design; this scenario is far below its 128-record bound.
+    for (id, method) in evidence["calls"].as_object().unwrap() {
+        let matches = |records: &[&Value]| {
+            records
+                .iter()
+                .filter(|r| r["fields"]["id"] == id.as_str() && r["fields"]["method"] == *method)
+                .count()
+        };
+        assert_eq!(
+            matches(&received),
+            1,
+            "rpc.received {id} {method}:\n{output}"
+        );
+        assert_eq!(
+            matches(&completed),
+            1,
+            "rpc.completed {id} {method}:\n{output}"
+        );
+    }
+    for record in &completed {
+        assert!(record["fields"]["duration_us"].is_u64(), "{record}");
+    }
+    let failed = evidence["failed_call"].as_str().unwrap();
+    assert!(
+        completed
+            .iter()
+            .any(|r| r["fields"]["id"] == failed
+                && r["fields"]["error_code"] == protocol::code::CLOSED),
+        "error outcome not recorded:\n{output}"
+    );
+    let notifications = with_event(&all, "notify.sent");
+    assert!(
+        notifications
+            .iter()
+            .any(|r| r["fields"]["method"] == "document.event"
+                && r["fields"]["type"] == "submit"
+                && r["fields"]["window_id"].is_string()
+                && r["fields"]["document_id"].is_string()),
+        "submit event not visible:\n{output}"
+    );
+    assert!(
+        notifications
+            .iter()
+            .any(|r| r["fields"]["method"] == "app.shutdown"),
+        "{output}"
+    );
+    assert!(
+        with_event(&all, "request.sent")
+            .iter()
+            .any(|r| r["fields"]["method"] == "app.before_quit"),
+        "{output}"
+    );
+    assert!(
+        !with_event(&all, "lifecycle.phase").is_empty(),
+        "lifecycle transitions missing:\n{output}"
+    );
+
+    let (_, output) = harness.run_with_diagnostics("trace_coverage", 0, Some(("normal", &session)));
+    assert!(!output.contains(TRACE_SENTINEL), "{output}");
+    let normal = records(&output);
+    for event in [
+        "rpc.received",
+        "rpc.completed",
+        "notify.sent",
+        "request.sent",
+        "lifecycle.phase",
+    ] {
+        assert!(
+            with_event(&normal, event).is_empty(),
+            "{event} at normal:\n{output}"
+        );
+    }
+}
+
 struct Client {
     stream: NativeStream,
     next_id: u64,
     received: VecDeque<Value>,
+    /// Request id -> method of every call this fixture made.
+    calls: BTreeMap<String, String>,
 }
 
 impl Client {
@@ -247,6 +401,7 @@ impl Client {
             stream: NativeStream::connect(&endpoint, Duration::from_secs(5)).unwrap(),
             next_id: 1,
             received: VecDeque::new(),
+            calls: BTreeMap::new(),
         }
     }
 
@@ -269,6 +424,7 @@ impl Client {
     fn call_result(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let id = format!("fixture:{}", self.next_id);
         self.next_id += 1;
+        self.calls.insert(id.clone(), method.to_owned());
         self.send(&protocol::request(&id, method, params));
         loop {
             let value = self.receive();
@@ -345,12 +501,16 @@ impl Client {
 }
 
 fn checkpoint(scenario: &str) {
+    checkpoint_with(scenario, json!({}));
+}
+
+fn checkpoint_with(scenario: &str, mut extra: Value) {
+    extra["scenario"] = json!(scenario);
+    extra["checkpoint"] = json!("complete");
+    extra["backend_pid"] = json!(std::process::id());
     fs::write(
         PathBuf::from(std::env::var_os("NATIVEHTMLKIT_INTEGRATION_EVIDENCE").unwrap()),
-        serde_json::to_vec(
-            &json!({"scenario":scenario,"checkpoint":"complete","backend_pid":std::process::id()}),
-        )
-        .unwrap(),
+        serde_json::to_vec(&extra).unwrap(),
     )
     .unwrap();
 }
@@ -531,6 +691,103 @@ fn backend_fixture() {
             );
             client.method("app.shutdown");
             checkpoint(&scenario);
+        }
+        "startup_close_secondary" => {
+            client.hello();
+            let main = client.call("window.create", json!({"title":"main"}))["window_id"].clone();
+            let extra = client.call("window.create", json!({"title":"extra"}))["window_id"].clone();
+            client.call("window.request_close", json!({"window_id":extra}));
+            let closed = loop {
+                let event = client.method("window.event");
+                if event["params"]["window_id"] == extra {
+                    break event;
+                }
+            };
+            assert_eq!(closed["params"]["type"], "closed", "{closed}");
+            let list = client.call("window.list", json!({}));
+            let ids: Vec<_> = list
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|w| w["window_id"].clone())
+                .collect();
+            assert_eq!(ids, vec![main], "{list}");
+            client.call("app.ready", json!({}));
+            assert_eq!(
+                client.call("host.diagnostics", json!({}))["phase"],
+                "running"
+            );
+            checkpoint(&scenario);
+            client.quit();
+        }
+        "last_window_close" => {
+            let windows = client.start(1);
+            client.call("window.request_close", json!({"window_id":windows[0]}));
+            let close = client.method("window.before_close");
+            client.decide(&close, true);
+            let quit = client.method("app.before_quit");
+            assert_eq!(quit["params"]["reason"], "last_window", "{quit}");
+            client.decide(&quit, true);
+            client.method("app.shutdown");
+            let types: Vec<_> = client
+                .received
+                .iter()
+                .filter(|m| m["method"] == "window.event")
+                .map(|m| m["params"]["type"].clone())
+                .collect();
+            assert_eq!(
+                types,
+                vec![json!("close_requested")],
+                "no closed event for the last window"
+            );
+            // app.shutdown implies every window is closed: handles are stale from here on.
+            assert_eq!(
+                client
+                    .call_result("window.get", json!({"window_id":windows[0]}))
+                    .unwrap_err()
+                    .code,
+                protocol::code::INVALID_STATE
+            );
+            checkpoint(&scenario);
+        }
+        "trace_coverage" => {
+            client.hello();
+            let window =
+                client.call("window.create", json!({"title":"trace"}))["window_id"].clone();
+            let document = client.call(
+                "document.load",
+                json!({"window_id":window,"html":"<form id='f'><input id='n' name='n' value='x'><button id='b' type='submit'>Go</button></form>"}),
+            )["document_id"].clone();
+            client.call("app.ready", json!({}));
+            client.call(
+                "document.command",
+                json!({"window_id":window,"document_id":document,"command":{"op":"request_submit","element":"f"}}),
+            );
+            loop {
+                let event = client.method("document.event");
+                if event["params"]["event"]["type"] == "submit" {
+                    break;
+                }
+            }
+            client.call(
+                "window.set",
+                json!({"window_id":window,"title":TRACE_SENTINEL}),
+            );
+            let failed_call = format!("fixture:{}", client.next_id);
+            assert_eq!(
+                client
+                    .call_result("window.get", json!({"window_id":"missing"}))
+                    .unwrap_err()
+                    .code,
+                protocol::code::CLOSED
+            );
+            client.call("window.list", json!({}));
+            client.quit();
+            checkpoint_with(
+                &scenario,
+                json!({"calls":client.calls,"failed_call":failed_call,
+                    "token":std::env::var("UI4ME_TOKEN").unwrap()}),
+            );
         }
         "disconnect" => {
             client.start(1);

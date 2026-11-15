@@ -1,0 +1,33 @@
+# cargo-deny policy for the local gate (`scripts/build-local.*` runs
+# `cargo deny --locked check advisories bans sources`). Licences are not checked by cargo-deny
+# here; the release stage generates and verifies licences/THIRD-PARTY-LICENSES.txt instead.
+
+[graph]
+# The qualified targets only (protocol/COMPATIBILITY.md "Platforms"); macOS-only crates are
+# not part of any shipped host.
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+
+[advisories]
+# Vulnerabilities and yanked crates fail the gate. The unmaintained notices below have no
+# maintained drop-in replacement within the pinned dependency set; each is tracked, not fixed.
+ignore = [
+    # ttf-parser via fontdue, used only by the host `probe` text stack (audit CORE-B-13;
+    # removal of fontdue/the duplicate probe font is deferred by the lead).
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained; only via fontdue in the probe; removal deferred (CORE-B-13)" },
+    # zbus_names / zvariant / zvariant_derive: merged into zbus 6; reached through zbus 5 via
+    # accesskit_unix/atspi and ashpd, which pin zbus 5. Revisit when they move to zbus 6.
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names merged into zbus 6; pinned by accesskit_unix/atspi/ashpd (zbus 5)" },
+    { id = "RUSTSEC-2026-0370", reason = "zvariant merged into zbus 6; pinned by accesskit_unix/atspi/ashpd (zbus 5)" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive merged into zbus 6; pinned by accesskit_unix/atspi/ashpd (zbus 5)" },
+]
+
+[bans]
+# Duplicate versions are reported (17 known) but do not fail the gate.
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

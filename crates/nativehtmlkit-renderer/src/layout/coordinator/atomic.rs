@@ -461,7 +461,11 @@ impl TreeAtomics<'_> {
 impl AtomicHost for TreeAtomics<'_> {
     fn text_services(&mut self) -> Option<&mut crate::text::fonts::TextServices> {
         // SAFETY: set by `layout_boxes` from its `&mut TextServices` for the duration of `compute_root_layout`, which
-        // runs on this thread and uses no other access to the services; reset to null afterwards.
+        // runs on this thread and uses no other access to the services; reset to null afterwards. The only caller
+        // (`ifc/container.rs`) holds the returned `&mut` for a single `shape()` call and does not re-enter, so no two
+        // live `&mut` alias. Unwind: if `compute_root_layout` panics the reset is skipped, but the `HostTree` holding
+        // the pointer is a local of the unwinding layout function (it has no `Drop` that reads `text_ptr`) and is
+        // dropped by the same unwind, so the stale pointer is never dereferenced.
         unsafe { self.tree.text_ptr.as_mut() }
     }
 

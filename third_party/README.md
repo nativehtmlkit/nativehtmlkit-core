@@ -1,8 +1,11 @@
 # Vendored dependency patches
 
 These packages are used through `[patch.crates-io]` in the workspace manifest at
-their exact pinned versions. Compare each directory with its first commit
-("Vendor pristine ...") to see the complete patch.
+their exact pinned versions. The pristine reference for each directory is the
+crates.io `.crate` package whose SHA-256 is recorded below (and in `Cargo.lock`);
+unpack it (or use `~/.cargo/registry/src/*/<crate>-<version>`) and `diff -r` it
+against the directory to see the complete change. Where a `.patch` file is
+present it records only the change named in it.
 
 ## winit-wayland 0.31.0-beta.4
 
@@ -56,7 +59,7 @@ The patched backend processes releases that have already arrived, and if the
 back buffer is still held it swaps in a new buffer and parks the busy one until
 its release (at most four parked buffers per surface). If that bound is reached
 it returns the error text "Wayland compositor still holds every buffer"
-instead of blocking; ui4me-host then skips that frame and requests another
+instead of blocking; nativehtmlkit-host then skips that frame and requests another
 frame-callback-paced redraw. The Windows backend is unchanged. Licensed
 MIT OR Apache-2.0 (LICENSE-MIT, LICENSE-APACHE).
 
@@ -73,7 +76,8 @@ covers it and fails without the patch.
 
 Upstream (also the newest accesskit_unix 0.24.1 on 2026-11-12) left every
 destroyed window's D-Bus objects registered in zbus's object server. Measured on
-KDE Plasma 6.3 with tools/measure_resources.py, host private memory grew about
+KDE Plasma 6.3 with the original UI4ME `tools/measure_resources.py` (not carried
+into this repository), host private memory grew about
 12.7 KiB per window create/close cycle (800 cycles: 16.5 to 25.5 MiB); with the
 patch about 3.8 KiB per cycle. The remainder is zbus 5.19 keeping the empty
 intermediate object-path node `/org/a11y/atspi/accessible/<adapter>` and its child
@@ -126,7 +130,8 @@ states to AT-SPI. The carried change is recorded in
 different issues and must not overwrite one another when updating upstream.
 
 The 0.1 measured results above are historical, not a 0.2 rerun. The complete
-0.1 status report remains in `docs/BASELINE_0.1_STATUS.md`. Further source patches
+0.1 status report (`docs/BASELINE_0.1_STATUS.md`) is in the original UI4ME source
+archive and was not carried into this repository. Further source patches
 needed by the renderer are documented separately in `patches/README.md`.
 
 ## Core 1.0 AT-SPI application identity and active descendant
@@ -141,8 +146,8 @@ The new `set_application_name` function in `context.rs`, exported by `lib.rs`,
 sets the process's accessible display name once, before the first adapter is
 created. `AppContext::new` uses it in preference to the executable name. The
 host supplies `app.name` from its manifest; a later attempt to change that
-process identity is an error. This avoids exposing every application as
-`ui4me-host` to AT-SPI clients. Replace this patch with an upstream application
+process identity is an error. This avoids exposing every application under the
+host executable name (`nativehtmlkit-host`, formerly `ui4me-host`) to AT-SPI clients. Replace this patch with an upstream application
 identity API when one is available.
 
 The `node.rs` addition emits the existing AT-SPI `ActiveDescendantChanged`

@@ -28,16 +28,31 @@ not a vendored copy of accesskit_winit.
 
 ## Bundled font
 
-The probe includes NotoSans-Regular.ttf under its upstream SIL Open Font
-License. The complete supplied notice is preserved at
-crates/ui4me-host/assets/FONT-LICENSE.txt. The font is used only for the native
-integration probe; its inclusion does not imply coverage or shaping for every
-writing system.
+The host binary embeds NotoSans-Regular.ttf (SIL Open Font License 1.1) twice,
+as two byte-identical copies:
+
+- `crates/nativehtmlkit-assets/assets/last-resort/NotoSans-Regular.ttf`: the
+  renderer's last-resort font, used for any HTML/CSS text no other font covers.
+  Notice: `crates/nativehtmlkit-assets/assets/last-resort/OFL.txt` (with
+  `PROVENANCE.md` and `SHA256SUMS` beside it).
+- `crates/nativehtmlkit-host/assets/NotoSans-Regular.ttf`: the font of the
+  `probe` subcommand's diagnostic text stack (fontdue). Notice:
+  `crates/nativehtmlkit-host/assets/FONT-LICENSE.txt`.
+
+Inclusion does not imply coverage or shaping for every writing system. Release
+archives ship the OFL as `licenses/NotoSans-OFL.txt`.
 
 ## Distribution
 
+Release archives built by `scripts/release-local.py` carry
+`licenses/THIRD-PARTY-LICENSES.txt`, generated for the build target from the
+host's normal-dependency tree (crate, version, declared licence, repository,
+source location and every LICENSE/COPYING/NOTICE/UNLICENSE file the package
+ships), the full MPL-2.0 text once (`licenses/MPL-2.0.txt`) with the source
+location of each MPL-2.0 crate, and the embedded-data notices listed below.
+
 Source dependencies are downloaded by Cargo rather than vendored into this
-archive, with host exceptions documented in third_party/README.md and the renderer
+repository, with host exceptions documented in third_party/README.md and the renderer
 source trees documented in patches/README.md, each the
 exact pinned package with a minimal patch: winit-wayland 0.31.0-beta.4
 (Apache-2.0; clipboard MIME types), softbuffer 0.4.8 (MIT OR Apache-2.0;
@@ -66,12 +81,18 @@ declarations and included notices govern those components.
 
 The renderer also carries a Noto Sans last-resort font and test/example fonts
 with their OFL notices, hyphenation data at
-`crates/ui4me-renderer/src/text/data/hyphenation/NOTICES.txt`, UA stylesheet
-provenance at `crates/ui4me-renderer/src/style/ua/PROVENANCE.md`, and parser test
-fixtures with their WPT notice. These data notices are preserved in the source
-archive. The example's `@font-face` font has its own adjacent FONT-LICENSE.txt.
+`crates/nativehtmlkit-renderer/src/text/data/hyphenation/NOTICES.txt` (shipped as
+`licenses/hyphenation-NOTICES.txt`), UA stylesheets with provenance at
+`crates/nativehtmlkit-renderer/src/style/ua/PROVENANCE.md` (shipped as
+`licenses/UA-STYLESHEETS-PROVENANCE.md` with an attribution in
+`licenses/UA-STYLESHEETS-NOTICE.txt`), and parser test fixtures with their WPT
+notice (tests only, not in the binary).
 
-The root MIT license describes original UI4ME code; it does not relicense the
+**Open owner decision (OD-26):** the UA stylesheets are labelled CC-BY-4.0 as
+the project default, *pending owner approval*; they are compiled into every host
+binary. The release notice states this status; it is not an approval. The example's `@font-face` font has its own adjacent FONT-LICENSE.txt.
+
+The root MIT license describes original UI4ME/NativeHTMLKit code; it does not relicense the
 carried Stylo, Taffy, font or other third-party source/data. The source of the
 carried modifications is included here. Retain applicable source and notices
 when packaging downstream binary distributions.

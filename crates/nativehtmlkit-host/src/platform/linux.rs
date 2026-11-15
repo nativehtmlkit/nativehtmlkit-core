@@ -112,9 +112,43 @@ pub fn runtime_directory() -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Where live-bitmap transport files are created (CORE-A-02): the private, owner-checked 0700
+/// runtime directory, never the shared root of `$XDG_RUNTIME_DIR`.
+pub fn bitmap_directory() -> Result<PathBuf> {
+    runtime_directory()
+}
+
+/// Whether a process with `pid` currently exists (signal 0; `EPERM` means it exists). A reused
+/// pid reads as alive, which only ever keeps a file, never removes a live one.
+pub fn process_alive(pid: u32) -> bool {
+    let Ok(pid) = libc::pid_t::try_from(pid) else {
+        return false;
+    };
+    if pid <= 0 {
+        return false;
+    }
+    // SAFETY: kill with signal 0 performs only the existence/permission check.
+    unsafe {
+        libc::kill(pid, 0) == 0 || io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Test probe: the mode a directory had at the instant `ensure_private_directory` created it.
+    static CREATED_MODE: std::cell::Cell<Option<u32>> = const { std::cell::Cell::new(None) };
+}
+
 fn ensure_private_directory(path: &Path) -> Result<()> {
-    match std::fs::create_dir(path) {
-        Ok(()) => std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?,
+    // CORE-A-09: created with 0700 in the mkdir call itself (umask can only narrow it), so the
+    // directory never exists with a wider mode. A pre-existing one is verified below, never
+    // repaired: it must be a real directory owned by us with no group/other bits.
+    use std::os::unix::fs::DirBuilderExt;
+    match std::fs::DirBuilder::new().mode(0o700).create(path) {
+        Ok(()) => {
+            #[cfg(test)]
+            CREATED_MODE.with(|m| m.set(std::fs::symlink_metadata(path).ok().map(|md| md.mode())));
+        }
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => (),
         Err(error) => return Err(error.into()),
     }
@@ -487,11 +521,85 @@ fn process_start_time(pid: u32) -> Result<u64> {
         .context("malformed /proc process start time")
 }
 
+/// Least time the event loop gets to act on launcher loss, and the margin added
+/// to the manifest's shutdown timeout (NHK-CROSS-0001).
+const WATCHDOG_MINIMUM: Duration = Duration::from_secs(2);
+const WATCHDOG_MARGIN: Duration = Duration::from_secs(1);
+
+fn watchdog_grace(shutdown_timeout: Duration) -> Duration {
+    shutdown_timeout
+        .saturating_add(WATCHDOG_MARGIN)
+        .max(WATCHDOG_MINIMUM)
+}
+
+/// Wait on the injected clock until `acknowledged` is set or `grace` has passed.
+/// Returns whether the event loop acknowledged in time.
+fn await_acknowledgement(
+    acknowledged: &AtomicBool,
+    grace: Duration,
+    mut now: impl FnMut() -> Instant,
+    mut sleep: impl FnMut(Duration),
+) -> bool {
+    let start = now();
+    loop {
+        if acknowledged.load(Ordering::SeqCst) {
+            return true;
+        }
+        let elapsed = now().saturating_duration_since(start);
+        if elapsed >= grace {
+            return acknowledged.load(Ordering::SeqCst);
+        }
+        sleep((grace - elapsed).min(Duration::from_millis(50)));
+    }
+}
+
+/// Runs on the watcher thread after launcher loss has been signalled. A host
+/// whose event loop is blocked never consumes the flag, so this thread ends the
+/// process itself: best-effort SIGKILL of the backend process group, one stderr
+/// record, exit 1. Under the systemd unit (KillMode=control-group) the exit then
+/// cleans up the rest of the control group. A fully stopped (SIGSTOP) host runs
+/// no thread at all; that case is a documented limitation.
+fn launcher_watchdog(watchdog: &super::LauncherWatchdog) {
+    let grace = watchdog_grace(watchdog.shutdown_timeout);
+    if await_acknowledgement(
+        &watchdog.acknowledged,
+        grace,
+        Instant::now,
+        std::thread::sleep,
+    ) {
+        return;
+    }
+    if let Some(group) = watchdog
+        .backend_group
+        .and_then(|pid| i32::try_from(pid).ok())
+    {
+        // SAFETY: plain signal delivery to the backend's own process group
+        // (spawn_backend makes the backend a session and group leader).
+        unsafe { libc::kill(-group, libc::SIGKILL) };
+    }
+    let line = crate::logging::emergency_record(&format!(
+        "launcher exited and the event loop did not begin shutdown within {} ms; terminating the host",
+        grace.as_millis()
+    ));
+    // stderr may be a full pipe or locked by a blocked log writer: bound the wait.
+    let (written, wait) = std::sync::mpsc::sync_channel(1);
+    let _ = std::thread::Builder::new()
+        .name("nativehtmlkit-watchdog-report".into())
+        .spawn(move || {
+            let _ = writeln!(io::stderr(), "{line}");
+            let _ = written.send(());
+        });
+    let _ = wait.recv_timeout(Duration::from_millis(500));
+    std::process::exit(1);
+}
+
 /// Watch the launcher of a supervised host. Returns a flag set once the
-/// launcher has exited (or was already gone), after which `wake` is called.
-/// Returns None when this host was not started by the supervising launcher.
+/// launcher has exited (or was already gone), after which `wake` is called and
+/// the bounded `watchdog` starts. Returns None when this host was not started
+/// by the supervising launcher.
 pub fn watch_launcher(
     wake: std::sync::Arc<dyn Fn() + Send + Sync>,
+    watchdog: super::LauncherWatchdog,
 ) -> Option<std::sync::Arc<AtomicBool>> {
     if !is_systemd_managed() {
         return None;
@@ -515,6 +623,12 @@ pub fn watch_launcher(
         tracing::warn!("launcher already exited; shutting down the supervised application");
         gone.store(true, Ordering::SeqCst);
         wake();
+        if let Err(error) = std::thread::Builder::new()
+            .name("nativehtmlkit-launcher-watch".into())
+            .spawn(move || launcher_watchdog(&watchdog))
+        {
+            tracing::warn!(%error, "cannot start launcher watchdog");
+        }
         return Some(gone);
     };
     let flag = gone.clone();
@@ -540,6 +654,7 @@ pub fn watch_launcher(
             tracing::warn!("launcher exited; shutting down the supervised application");
             flag.store(true, Ordering::SeqCst);
             wake();
+            launcher_watchdog(&watchdog);
         });
     if let Err(error) = spawned {
         tracing::warn!(%error, "cannot start launcher watch");
@@ -596,6 +711,9 @@ pub fn spawn_backend(
 ) -> Result<SpawnedChild> {
     use std::os::unix::process::CommandExt;
     let mut command = Command::new(&config.program);
+    for key in super::HOST_ONLY_ENV {
+        command.env_remove(key);
+    }
     command
         .args(&config.args)
         .current_dir(&config.cwd)
@@ -753,8 +871,70 @@ pub fn initialize_application(_app_id: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// NHK-CROSS-0001: the watchdog bound is the shutdown timeout plus a margin, never
+    /// below the minimum.
+    #[test]
+    fn watchdog_grace_extends_the_shutdown_timeout_with_a_minimum() {
+        assert_eq!(watchdog_grace(Duration::ZERO), Duration::from_secs(2));
+        assert_eq!(
+            watchdog_grace(Duration::from_millis(500)),
+            Duration::from_secs(2)
+        );
+        assert_eq!(
+            watchdog_grace(Duration::from_secs(5)),
+            Duration::from_secs(6)
+        );
+        assert_eq!(watchdog_grace(Duration::MAX), Duration::MAX);
+    }
+
+    /// NHK-CROSS-0001: a fake clock drives the decision; no real time passes.
+    #[test]
+    fn watchdog_fires_only_when_the_event_loop_does_not_acknowledge_in_time() {
+        use std::cell::Cell;
+        let base = Instant::now();
+        let grace = Duration::from_secs(3);
+        let run = |acknowledge_at: Option<Duration>| {
+            let flag = AtomicBool::new(false);
+            let clock = Cell::new(Duration::ZERO);
+            let sleeps = Cell::new(0u32);
+            let acknowledged = await_acknowledgement(
+                &flag,
+                grace,
+                || base + clock.get(),
+                |step| {
+                    assert!(step > Duration::ZERO && step <= Duration::from_millis(50));
+                    sleeps.set(sleeps.get() + 1);
+                    clock.set(clock.get() + step);
+                    if acknowledge_at.is_some_and(|at| clock.get() >= at) {
+                        flag.store(true, Ordering::SeqCst);
+                    }
+                },
+            );
+            (acknowledged, clock.get(), sleeps.get())
+        };
+        // Never acknowledged: fires exactly at the bound, polling in bounded steps.
+        let (acknowledged, waited, sleeps) = run(None);
+        assert!(!acknowledged);
+        assert_eq!(waited, grace);
+        assert_eq!(sleeps, 60);
+        // Acknowledged before the bound: stands down as soon as it is seen.
+        let (acknowledged, waited, _) = run(Some(Duration::from_millis(400)));
+        assert!(acknowledged);
+        assert_eq!(waited, Duration::from_millis(400));
+        // Already acknowledged: no wait at all.
+        let flag = AtomicBool::new(true);
+        assert!(await_acknowledgement(
+            &flag,
+            grace,
+            || base,
+            |_| panic!("slept")
+        ));
+    }
+
     #[test]
     fn launcher_identity_distinguishes_processes_by_start_time() {
+        let _serial = crate::platform::process_test_guard();
         let own = launcher_identity(std::process::id()).unwrap();
         assert_eq!(own, launcher_identity(std::process::id()).unwrap());
         let mut child = Command::new("sleep").arg("5").spawn().unwrap();
@@ -818,8 +998,35 @@ mod tests {
         }
     }
 
+    /// CORE-A-09: the directory must never exist with a mode wider than 0700, not even between
+    /// creation and a later chmod; a pre-existing directory is accepted only if it is private.
+    #[test]
+    fn private_directory_is_created_private_and_verified_when_present() {
+        let base = tempfile::tempdir().unwrap();
+        let fresh = base.path().join("fresh");
+        CREATED_MODE.with(|m| m.set(None));
+        ensure_private_directory(&fresh).unwrap();
+        let at_creation = CREATED_MODE
+            .with(|m| m.get())
+            .expect("directory was created");
+        assert_eq!(at_creation & 0o077, 0, "created with mode {at_creation:o}");
+        assert_eq!(std::fs::metadata(&fresh).unwrap().mode() & 0o777, 0o700);
+        // Already present and private: accepted.
+        ensure_private_directory(&fresh).unwrap();
+        // Already present but readable by others: refused, not repaired.
+        let open = base.path().join("open");
+        std::fs::create_dir(&open).unwrap();
+        std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(ensure_private_directory(&open).is_err());
+        // A symlink to a private directory: refused.
+        let link = base.path().join("link");
+        std::os::unix::fs::symlink(&fresh, &link).unwrap();
+        assert!(ensure_private_directory(&link).is_err());
+    }
+
     #[test]
     fn lock_excludes_other_instance_and_releases() {
+        let _serial = crate::platform::process_test_guard();
         let app = format!("org.nativehtmlkit.test.{}", std::process::id());
         let one = InstanceLock::acquire(&app).unwrap();
         assert!(one.primary);
@@ -878,8 +1085,54 @@ mod tests {
         assert!(NativeListener::bind(endpoint).is_ok());
     }
 
+    /// CORE-A-11: supervision markers of *this* host must not reach the backend (a host the
+    /// backend launches would otherwise skip its own supervision and watch the wrong launcher).
+    /// `UI4ME_TEST_MODE` stays inherited. The markers are set on a re-executed copy of this test
+    /// binary, so no test mutates the shared process environment.
+    #[test]
+    fn backend_does_not_inherit_supervision_markers() {
+        const CHILD: &str = "NATIVEHTMLKIT_TEST_A11_CHILD";
+        let _serial = crate::platform::process_test_guard();
+        if std::env::var_os(CHILD).is_some() {
+            let config = crate::config::BackendConfig {
+                program: "/bin/sh".into(),
+                args: vec![
+                    "-c".into(),
+                    r#"printf '%s|%s|%s' "${UI4ME_SYSTEMD_UNIT-unset}" "${NATIVEHTMLKIT_LAUNCHER-unset}" "${UI4ME_TEST_MODE-unset}""#.into(),
+                ],
+                cwd: std::env::temp_dir(),
+                env: Default::default(),
+            };
+            let mut native =
+                spawn_backend(&config, "/unused", "test", "org.nativehtmlkit.test").unwrap();
+            let mut out = String::new();
+            native.stdout.read_to_string(&mut out).unwrap();
+            assert_eq!(out, "unset|unset|1", "backend environment");
+            return;
+        }
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "platform::linux::tests::backend_does_not_inherit_supervision_markers",
+                "--test-threads=1",
+            ])
+            .env(CHILD, "1")
+            .env("UI4ME_SYSTEMD_UNIT", "outer.service")
+            .env("NATIVEHTMLKIT_LAUNCHER", "1:2")
+            .env("UI4ME_TEST_MODE", "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "child test failed: {}\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
+
     #[test]
     fn exited_child_is_reaped_and_exit_status_is_stable() {
+        let _serial = crate::platform::process_test_guard();
         let config = crate::config::BackendConfig {
             program: "/bin/sh".into(),
             args: vec!["-c".into(), "exit 7".into()],
@@ -915,6 +1168,7 @@ mod tests {
 
     #[test]
     fn dropping_live_child_reaps_without_blocking_the_gui() {
+        let _serial = crate::platform::process_test_guard();
         let config = crate::config::BackendConfig {
             program: "/bin/sleep".into(),
             args: vec!["30".into()],

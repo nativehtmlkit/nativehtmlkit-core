@@ -1,5 +1,16 @@
 {
   "cases": {
+    "app.force_quit.backend_continued_after_request": false,
+    "app.force_quit.host_exit_code": 1,
+    "app.force_quit.prelude.app.ready": {
+      "booleans": {
+        "ready": true
+      },
+      "members": {
+        "ready": "boolean"
+      },
+      "ok": "object"
+    },
     "app.ready.again": {
       "error": -32008
     },
@@ -7,15 +18,21 @@
       "error": -32008
     },
     "app.ready.ok": {
-      "members": [
-        "ready"
-      ],
+      "booleans": {
+        "ready": true
+      },
+      "members": {
+        "ready": "boolean"
+      },
       "ok": "object"
     },
     "app.request_quit.ok": {
-      "members": [
-        "requested"
-      ],
+      "booleans": {
+        "requested": true
+      },
+      "members": {
+        "requested": "boolean"
+      },
       "ok": "object"
     },
     "auth.before_hello.window.list": {
@@ -28,12 +45,12 @@
       "error": -32011
     },
     "auth.hello.ok_with_unknown_member": {
-      "members": [
-        "app_id",
-        "capabilities",
-        "host_version",
-        "protocol_version"
-      ],
+      "members": {
+        "app_id": "string",
+        "capabilities": "object",
+        "host_version": "string",
+        "protocol_version": "number"
+      },
       "ok": "object"
     },
     "auth.hello.wrong_token": {
@@ -43,33 +60,90 @@
       "error": -32010
     },
     "bitmap.close.again": {
-      "members": [
-        "closed"
-      ],
+      "booleans": {
+        "closed": false
+      },
+      "members": {
+        "closed": "boolean"
+      },
       "ok": "object"
     },
     "bitmap.close.ok": {
-      "members": [
-        "closed"
-      ],
+      "booleans": {
+        "closed": true
+      },
+      "members": {
+        "closed": "boolean"
+      },
       "ok": "object"
     },
     "bitmap.create.bad_format": {
       "error": -32602
     },
     "bitmap.create.ok": {
-      "members": [
-        "bitmap_id",
-        "height",
-        "owner",
-        "path",
-        "pixel_format",
-        "slot_bytes",
-        "slots",
-        "stride",
-        "width"
-      ],
+      "members": {
+        "bitmap_id": "string",
+        "height": "number",
+        "owner": "string",
+        "path": "string",
+        "pixel_format": "string",
+        "slot_bytes": "number",
+        "slots": "number",
+        "stride": "number",
+        "width": "number"
+      },
       "ok": "object"
+    },
+    "bitmap.present.missing_member": {
+      "error": -32602
+    },
+    "bitmap.present.next_sequence_other_slot": {
+      "booleans": {
+        "presented_to_engine": true,
+        "slot_released": true
+      },
+      "members": {
+        "presented_to_engine": "boolean",
+        "sequence": "number",
+        "slot_released": "boolean"
+      },
+      "ok": "object"
+    },
+    "bitmap.present.ok": {
+      "booleans": {
+        "presented_to_engine": true,
+        "slot_released": true
+      },
+      "members": {
+        "presented_to_engine": "boolean",
+        "sequence": "number",
+        "slot_released": "boolean"
+      },
+      "ok": "object"
+    },
+    "bitmap.present.sequence_zero": {
+      "error": -32602
+    },
+    "bitmap.present.slot_out_of_bounds": {
+      "error": -32602
+    },
+    "bitmap.present.stale_sequence": {
+      "booleans": {
+        "presented_to_engine": false,
+        "slot_released": true
+      },
+      "members": {
+        "presented_to_engine": "boolean",
+        "sequence": "number",
+        "slot_released": "boolean"
+      },
+      "ok": "object"
+    },
+    "bitmap.present.unknown_bitmap": {
+      "error": -32004
+    },
+    "bitmap.present.unknown_member": {
+      "error": -32602
     },
     "clipboard.read_text.headless": {
       "error": -32001
@@ -84,25 +158,28 @@
       "error": -32001
     },
     "desktop.paths.ok": {
-      "members": [
-        "cache",
-        "config",
-        "data",
-        "runtime",
-        "state"
-      ],
+      "members": {
+        "cache": "string",
+        "config": "string",
+        "data": "string",
+        "runtime": "string",
+        "state": "string"
+      },
       "ok": "object"
     },
     "desktop.preferences.ok": {
-      "members": [
-        "available",
-        "color_scheme",
-        "high_contrast",
-        "reduced_motion",
-        "revision",
-        "scope",
-        "source"
-      ],
+      "booleans": {
+        "available": false
+      },
+      "members": {
+        "available": "boolean",
+        "color_scheme": "null",
+        "high_contrast": "null",
+        "reduced_motion": "null",
+        "revision": "number",
+        "scope": "string",
+        "source": "string"
+      },
       "ok": "object"
     },
     "desktop.reveal_file.relative_path": {
@@ -133,23 +210,30 @@
       "error": -32602
     },
     "document.get.empty": {
-      "members": [
-        "document_id",
-        "loaded",
-        "window_id"
-      ],
+      "booleans": {
+        "loaded": false
+      },
+      "members": {
+        "document_id": "null",
+        "loaded": "boolean",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "document.get.loaded": {
-      "members": [
-        "asset_root",
-        "document_id",
-        "loaded",
-        "pending_resources",
-        "renderer",
-        "source",
-        "window_id"
-      ],
+      "booleans": {
+        "loaded": true,
+        "pending_resources": false
+      },
+      "members": {
+        "asset_root": "null",
+        "document_id": "string",
+        "loaded": "boolean",
+        "pending_resources": "boolean",
+        "renderer": "string",
+        "source": "null",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "document.load.both_sources": {
@@ -159,15 +243,19 @@
       "error": -32602
     },
     "document.load.ok": {
-      "members": [
-        "asset_root",
-        "document_id",
-        "loaded",
-        "pending_resources",
-        "renderer",
-        "source",
-        "window_id"
-      ],
+      "booleans": {
+        "loaded": true,
+        "pending_resources": false
+      },
+      "members": {
+        "asset_root": "null",
+        "document_id": "string",
+        "loaded": "boolean",
+        "pending_resources": "boolean",
+        "renderer": "string",
+        "source": "null",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "document.load.oversize_html": {
@@ -180,49 +268,69 @@
       "error": -32004
     },
     "document.unload.ok": {
-      "members": [
-        "document_id",
-        "loaded",
-        "window_id"
-      ],
+      "booleans": {
+        "loaded": false
+      },
+      "members": {
+        "document_id": "null",
+        "loaded": "boolean",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "envelope.batch_array": {
       "no_response": true
     },
     "envelope.duplicate_id_key_last_wins": {
+      "length": 0,
       "ok": "array"
     },
     "envelope.duplicate_method_key_last_wins": {
-      "members": [
-        "accessibility",
-        "capability_schema",
-        "clipboard_text",
-        "containment",
-        "css_profile",
-        "drag_drop",
-        "external_open",
-        "features",
-        "file_dialogs",
-        "headless",
-        "html_css",
-        "ime",
-        "legacy_flags",
-        "limits",
-        "max_documents",
-        "max_windows",
-        "native",
-        "native_preferences",
-        "native_qualification",
-        "platform",
-        "printing",
-        "probe",
-        "qualification",
-        "renderer",
-        "tray",
-        "window_positioning",
-        "windows"
-      ],
+      "booleans": {
+        "accessibility": false,
+        "clipboard_text": false,
+        "drag_drop": false,
+        "external_open": false,
+        "file_dialogs": false,
+        "headless": true,
+        "html_css": true,
+        "ime": false,
+        "native": false,
+        "printing": false,
+        "probe": true,
+        "tray": false,
+        "window_positioning": false,
+        "windows": true
+      },
+      "members": {
+        "accessibility": "boolean",
+        "capability_schema": "number",
+        "clipboard_text": "boolean",
+        "containment": "string",
+        "css_profile": "string",
+        "drag_drop": "boolean",
+        "external_open": "boolean",
+        "features": "object",
+        "file_dialogs": "boolean",
+        "headless": "boolean",
+        "html_css": "boolean",
+        "ime": "boolean",
+        "legacy_flags": "string",
+        "limits": "object",
+        "max_documents": "number",
+        "max_windows": "number",
+        "native": "boolean",
+        "native_preferences": "object",
+        "native_qualification": "string",
+        "platform": "string",
+        "printing": "boolean",
+        "probe": "boolean",
+        "qualification": "object",
+        "renderer": "string",
+        "tray": "boolean",
+        "window_positioning": "boolean",
+        "windows": "boolean"
+      },
       "ok": "object"
     },
     "envelope.id_control_char": {
@@ -286,6 +394,7 @@
       "id": null
     },
     "envelope.params_omitted": {
+      "length": 0,
       "ok": "array"
     },
     "envelope.response_from_client_unsolicited": {
@@ -296,93 +405,125 @@
       "id": null
     },
     "host.capabilities.ok": {
-      "members": [
-        "accessibility",
-        "capability_schema",
-        "clipboard_text",
-        "containment",
-        "css_profile",
-        "drag_drop",
-        "external_open",
-        "features",
-        "file_dialogs",
-        "headless",
-        "html_css",
-        "ime",
-        "legacy_flags",
-        "limits",
-        "max_documents",
-        "max_windows",
-        "native",
-        "native_preferences",
-        "native_qualification",
-        "platform",
-        "printing",
-        "probe",
-        "qualification",
-        "renderer",
-        "tray",
-        "window_positioning",
-        "windows"
-      ],
+      "booleans": {
+        "accessibility": false,
+        "clipboard_text": false,
+        "drag_drop": false,
+        "external_open": false,
+        "file_dialogs": false,
+        "headless": true,
+        "html_css": true,
+        "ime": false,
+        "native": false,
+        "printing": false,
+        "probe": true,
+        "tray": false,
+        "window_positioning": false,
+        "windows": true
+      },
+      "members": {
+        "accessibility": "boolean",
+        "capability_schema": "number",
+        "clipboard_text": "boolean",
+        "containment": "string",
+        "css_profile": "string",
+        "drag_drop": "boolean",
+        "external_open": "boolean",
+        "features": "object",
+        "file_dialogs": "boolean",
+        "headless": "boolean",
+        "html_css": "boolean",
+        "ime": "boolean",
+        "legacy_flags": "string",
+        "limits": "object",
+        "max_documents": "number",
+        "max_windows": "number",
+        "native": "boolean",
+        "native_preferences": "object",
+        "native_qualification": "string",
+        "platform": "string",
+        "printing": "boolean",
+        "probe": "boolean",
+        "qualification": "object",
+        "renderer": "string",
+        "tray": "boolean",
+        "window_positioning": "boolean",
+        "windows": "boolean"
+      },
       "ok": "object"
     },
     "host.capabilities.unknown_member_ignored": {
-      "members": [
-        "accessibility",
-        "capability_schema",
-        "clipboard_text",
-        "containment",
-        "css_profile",
-        "drag_drop",
-        "external_open",
-        "features",
-        "file_dialogs",
-        "headless",
-        "html_css",
-        "ime",
-        "legacy_flags",
-        "limits",
-        "max_documents",
-        "max_windows",
-        "native",
-        "native_preferences",
-        "native_qualification",
-        "platform",
-        "printing",
-        "probe",
-        "qualification",
-        "renderer",
-        "tray",
-        "window_positioning",
-        "windows"
-      ],
+      "booleans": {
+        "accessibility": false,
+        "clipboard_text": false,
+        "drag_drop": false,
+        "external_open": false,
+        "file_dialogs": false,
+        "headless": true,
+        "html_css": true,
+        "ime": false,
+        "native": false,
+        "printing": false,
+        "probe": true,
+        "tray": false,
+        "window_positioning": false,
+        "windows": true
+      },
+      "members": {
+        "accessibility": "boolean",
+        "capability_schema": "number",
+        "clipboard_text": "boolean",
+        "containment": "string",
+        "css_profile": "string",
+        "drag_drop": "boolean",
+        "external_open": "boolean",
+        "features": "object",
+        "file_dialogs": "boolean",
+        "headless": "boolean",
+        "html_css": "boolean",
+        "ime": "boolean",
+        "legacy_flags": "string",
+        "limits": "object",
+        "max_documents": "number",
+        "max_windows": "number",
+        "native": "boolean",
+        "native_preferences": "object",
+        "native_qualification": "string",
+        "platform": "string",
+        "printing": "boolean",
+        "probe": "boolean",
+        "qualification": "object",
+        "renderer": "string",
+        "tray": "boolean",
+        "window_positioning": "boolean",
+        "windows": "boolean"
+      },
       "ok": "object"
     },
     "host.diagnostics.ok": {
-      "members": [
-        "backend_pid",
-        "containment",
-        "logging",
-        "pending_jobs",
-        "pending_transfers",
-        "phase",
-        "pid",
-        "windows"
-      ],
+      "members": {
+        "backend_pid": "number",
+        "containment": "string",
+        "logging": "object",
+        "pending_jobs": "number",
+        "pending_transfers": "number",
+        "phase": "string",
+        "pid": "number",
+        "windows": "array"
+      },
       "ok": "object"
     },
     "lifecycle.after_shutdown.host.diagnostics": {
-      "members": [
-        "backend_pid",
-        "containment",
-        "logging",
-        "pending_jobs",
-        "pending_transfers",
-        "phase",
-        "pid",
-        "windows"
-      ],
+      "members": {
+        "backend_pid": "number",
+        "containment": "string",
+        "logging": "object",
+        "pending_jobs": "number",
+        "pending_transfers": "number",
+        "phase": "string",
+        "pid": "number",
+        "windows": "array"
+      },
       "ok": "object"
     },
     "lifecycle.after_shutdown.window.list": {
@@ -403,9 +544,12 @@
       "error": -32602
     },
     "op.add_class.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.add_class.unknown_member": {
@@ -415,10 +559,10 @@
       "error": -32602
     },
     "op.add_stylesheet.required_only": {
-      "members": [
-        "diagnostics",
-        "sheet"
-      ],
+      "members": {
+        "diagnostics": "array",
+        "sheet": "number"
+      },
       "ok": "object"
     },
     "op.add_stylesheet.unknown_member": {
@@ -428,9 +572,12 @@
       "error": -32602
     },
     "op.append_text.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.append_text.unknown_member": {
@@ -440,91 +587,112 @@
       "error": -32602
     },
     "op.batch.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.batch.unknown_member": {
       "error": -32602
     },
     "op.blur.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.blur.unknown_member": {
       "error": -32602
     },
     "op.blur.with_element": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.check_validity.missing_required": {
       "error": -32602
     },
     "op.check_validity.required_only": {
-      "members": [
-        "count",
-        "invalid",
-        "valid"
-      ],
+      "booleans": {
+        "valid": true
+      },
+      "members": {
+        "count": "number",
+        "invalid": "array",
+        "valid": "boolean"
+      },
       "ok": "object"
     },
     "op.check_validity.unknown_member": {
       "error": -32602
     },
     "op.clear_selection.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.clear_selection.unknown_member": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.close_dialog.missing_required": {
       "error": -32602
     },
     "op.close_dialog.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.close_dialog.unknown_member": {
       "error": -32602
     },
     "op.copy_selection.required_only": {
-      "members": [
-        "text"
-      ],
+      "members": {
+        "text": "string"
+      },
       "ok": "object"
     },
     "op.copy_selection.unknown_member": {
-      "members": [
-        "text"
-      ],
+      "members": {
+        "text": "string"
+      },
       "ok": "object"
     },
     "op.css_profile.required_only": {
-      "members": [
-        "features",
-        "version"
-      ],
+      "members": {
+        "features": "array",
+        "version": "string"
+      },
       "ok": "object"
     },
     "op.css_profile.unknown_member": {
-      "members": [
-        "features",
-        "version"
-      ],
+      "members": {
+        "features": "array",
+        "version": "string"
+      },
       "ok": "object"
     },
     "op.edit_command.missing_required": {
@@ -537,20 +705,24 @@
       "error": -32602
     },
     "op.edit_command.with_element": {
-      "members": [
-        "accepted",
-        "clipboard_pending"
-      ],
+      "booleans": {
+        "accepted": true,
+        "clipboard_pending": false
+      },
+      "members": {
+        "accepted": "boolean",
+        "clipboard_pending": "boolean"
+      },
       "ok": "object"
     },
     "op.element_at_point.missing_required": {
       "error": -32602
     },
     "op.element_at_point.required_only": {
-      "members": [
-        "element",
-        "node"
-      ],
+      "members": {
+        "element": "null",
+        "node": "string"
+      },
       "ok": "object"
     },
     "op.element_at_point.unknown_member": {
@@ -563,13 +735,13 @@
       "error": -32602
     },
     "op.explain.with_element": {
-      "members": [
-        "element",
-        "properties",
-        "reason",
-        "schema",
-        "status"
-      ],
+      "members": {
+        "element": "string",
+        "properties": "array",
+        "reason": "string",
+        "schema": "number",
+        "status": "string"
+      },
       "ok": "object"
     },
     "op.focus.required_only": {
@@ -579,30 +751,33 @@
       "error": -32602
     },
     "op.focus.with_element": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.get_accessibility_tree.required_only": {
-      "members": [
-        "tree"
-      ],
+      "members": {
+        "tree": "object"
+      },
       "ok": "object"
     },
     "op.get_accessibility_tree.unknown_member": {
-      "members": [
-        "tree"
-      ],
+      "members": {
+        "tree": "object"
+      },
       "ok": "object"
     },
     "op.get_attribute.missing_required": {
       "error": -32602
     },
     "op.get_attribute.required_only": {
-      "members": [
-        "value"
-      ],
+      "members": {
+        "value": "string"
+      },
       "ok": "object"
     },
     "op.get_attribute.unknown_member": {
@@ -612,9 +787,9 @@
       "error": -32602
     },
     "op.get_attributes.required_only": {
-      "members": [
-        "attributes"
-      ],
+      "members": {
+        "attributes": "object"
+      },
       "ok": "object"
     },
     "op.get_attributes.unknown_member": {
@@ -624,9 +799,12 @@
       "error": -32602
     },
     "op.get_checked.required_only": {
-      "members": [
-        "checked"
-      ],
+      "booleans": {
+        "checked": true
+      },
+      "members": {
+        "checked": "boolean"
+      },
       "ok": "object"
     },
     "op.get_checked.unknown_member": {
@@ -642,10 +820,10 @@
       "error": -32602
     },
     "op.get_computed_style.with_element": {
-      "members": [
-        "properties",
-        "schema"
-      ],
+      "members": {
+        "properties": "object",
+        "schema": "number"
+      },
       "ok": "object"
     },
     "op.get_control_selection.required_only": {
@@ -655,95 +833,99 @@
       "error": -32602
     },
     "op.get_control_selection.with_element": {
-      "members": [
-        "direction",
-        "end",
-        "length",
-        "node",
-        "start"
-      ],
+      "members": {
+        "direction": "string",
+        "end": "number",
+        "length": "number",
+        "node": "string",
+        "start": "number"
+      },
       "ok": "object"
     },
     "op.get_diagnostics.required_only": {
-      "members": [
-        "css_profile_version",
-        "diagnostics"
-      ],
+      "members": {
+        "css_profile_version": "string",
+        "diagnostics": "array"
+      },
       "ok": "object"
     },
     "op.get_diagnostics.unknown_member": {
-      "members": [
-        "css_profile_version",
-        "diagnostics"
-      ],
+      "members": {
+        "css_profile_version": "string",
+        "diagnostics": "array"
+      },
       "ok": "object"
     },
     "op.get_dialog.missing_required": {
       "error": -32602
     },
     "op.get_dialog.required_only": {
-      "members": [
-        "modal",
-        "open",
-        "return_value"
-      ],
+      "booleans": {
+        "modal": false,
+        "open": false
+      },
+      "members": {
+        "modal": "boolean",
+        "open": "boolean",
+        "return_value": "string"
+      },
       "ok": "object"
     },
     "op.get_dialog.unknown_member": {
       "error": -32602
     },
     "op.get_environment.required_only": {
-      "members": [
-        "color_scheme",
-        "color_scheme_source",
-        "high_contrast",
-        "high_contrast_source",
-        "reduced_motion",
-        "reduced_motion_source",
-        "scale",
-        "system_color_scheme",
-        "system_reduced_motion"
-      ],
+      "members": {
+        "color_scheme": "string",
+        "color_scheme_source": "string",
+        "high_contrast": "null",
+        "high_contrast_source": "string",
+        "reduced_motion": "string",
+        "reduced_motion_source": "string",
+        "scale": "number",
+        "system_color_scheme": "string",
+        "system_reduced_motion": "null"
+      },
       "ok": "object"
     },
     "op.get_environment.unknown_member": {
-      "members": [
-        "color_scheme",
-        "color_scheme_source",
-        "high_contrast",
-        "high_contrast_source",
-        "reduced_motion",
-        "reduced_motion_source",
-        "scale",
-        "system_color_scheme",
-        "system_reduced_motion"
-      ],
+      "members": {
+        "color_scheme": "string",
+        "color_scheme_source": "string",
+        "high_contrast": "null",
+        "high_contrast_source": "string",
+        "reduced_motion": "string",
+        "reduced_motion_source": "string",
+        "scale": "number",
+        "system_color_scheme": "string",
+        "system_reduced_motion": "null"
+      },
       "ok": "object"
     },
     "op.get_files.missing_required": {
       "error": -32602
     },
     "op.get_files.required_only": {
-      "members": [
-        "files"
-      ],
+      "members": {
+        "files": "array"
+      },
       "ok": "object"
     },
     "op.get_files.unknown_member": {
       "error": -32602
     },
     "op.get_focused_element.required_only": {
-      "members": [
-        "element",
-        "node"
-      ],
+      "members": {
+        "element": "string",
+        "node": "string"
+      },
       "ok": "object"
     },
     "op.get_focused_element.unknown_member": {
-      "members": [
-        "element",
-        "node"
-      ],
+      "members": {
+        "element": "string",
+        "node": "string"
+      },
       "ok": "object"
     },
     "op.get_form_data.required_only": {
@@ -753,50 +935,56 @@
       "error": -32602
     },
     "op.get_form_data.with_element": {
-      "members": [
-        "entries",
-        "submitter"
-      ],
+      "members": {
+        "entries": "array",
+        "submitter": "null"
+      },
       "ok": "object"
     },
     "op.get_html.required_only": {
-      "members": [
-        "html",
-        "next_offset",
-        "offset",
-        "total_bytes",
-        "truncated"
-      ],
+      "booleans": {
+        "truncated": false
+      },
+      "members": {
+        "html": "string",
+        "next_offset": "null",
+        "offset": "number",
+        "total_bytes": "number",
+        "truncated": "boolean"
+      },
       "ok": "object"
     },
     "op.get_html.unknown_member": {
       "error": -32602
     },
     "op.get_html.with_element": {
-      "members": [
-        "html",
-        "next_offset",
-        "offset",
-        "total_bytes",
-        "truncated"
-      ],
+      "booleans": {
+        "truncated": false
+      },
+      "members": {
+        "html": "string",
+        "next_offset": "null",
+        "offset": "number",
+        "total_bytes": "number",
+        "truncated": "boolean"
+      },
       "ok": "object"
     },
     "op.get_node.missing_required": {
       "error": -32602
     },
     "op.get_node.required_only": {
-      "members": [
-        "attributes",
-        "child_count",
-        "id",
-        "name",
-        "next",
-        "node",
-        "parent",
-        "previous",
-        "type"
-      ],
+      "members": {
+        "attributes": "object",
+        "child_count": "number",
+        "id": "string",
+        "name": "string",
+        "next": "string",
+        "node": "string",
+        "parent": "string",
+        "previous": "string",
+        "type": "string"
+      },
       "ok": "object"
     },
     "op.get_node.unknown_member": {
@@ -806,34 +994,37 @@
       "error": -32602
     },
     "op.get_options.required_only": {
-      "members": [
-        "options"
-      ],
+      "members": {
+        "options": "array"
+      },
       "ok": "object"
     },
     "op.get_options.unknown_member": {
       "error": -32602
     },
     "op.get_pointer_capture.required_only": {
-      "members": [
-        "element"
-      ],
+      "members": {
+        "element": "null"
+      },
       "ok": "object"
     },
     "op.get_pointer_capture.unknown_member": {
-      "members": [
-        "element"
-      ],
+      "members": {
+        "element": "null"
+      },
       "ok": "object"
     },
     "op.get_popover.missing_required": {
       "error": -32602
     },
     "op.get_popover.required_only": {
-      "members": [
-        "kind",
-        "open"
-      ],
+      "booleans": {
+        "open": false
+      },
+      "members": {
+        "kind": "string",
+        "open": "boolean"
+      },
       "ok": "object"
     },
     "op.get_popover.unknown_member": {
@@ -843,82 +1034,90 @@
       "error": -32602
     },
     "op.get_rect.required_only": {
-      "members": [
-        "rect"
-      ],
+      "members": {
+        "rect": "object"
+      },
       "ok": "object"
     },
     "op.get_rect.unknown_member": {
       "error": -32602
     },
     "op.get_resource_stats.required_only": {
-      "members": [
-        "bundles",
-        "cache",
-        "svg_rasters"
-      ],
+      "members": {
+        "bundles": "object",
+        "cache": "object",
+        "svg_rasters": "object"
+      },
       "ok": "object"
     },
     "op.get_resource_stats.unknown_member": {
-      "members": [
-        "bundles",
-        "cache",
-        "svg_rasters"
-      ],
+      "members": {
+        "bundles": "object",
+        "cache": "object",
+        "svg_rasters": "object"
+      },
       "ok": "object"
     },
     "op.get_scroll.required_only": {
-      "members": [
-        "animating",
-        "height",
-        "max_x",
-        "max_y",
-        "min_x",
-        "min_y",
-        "scrollable",
-        "width",
-        "x",
-        "y"
-      ],
+      "booleans": {
+        "animating": false,
+        "scrollable": true
+      },
+      "members": {
+        "animating": "boolean",
+        "height": "number",
+        "max_x": "number",
+        "max_y": "number",
+        "min_x": "number",
+        "min_y": "number",
+        "scrollable": "boolean",
+        "width": "number",
+        "x": "number",
+        "y": "number"
+      },
       "ok": "object"
     },
     "op.get_scroll.unknown_member": {
       "error": -32602
     },
     "op.get_scroll.with_element": {
-      "members": [
-        "animating",
-        "height",
-        "max_x",
-        "max_y",
-        "min_x",
-        "min_y",
-        "scrollable",
-        "width",
-        "x",
-        "y"
-      ],
+      "booleans": {
+        "animating": false,
+        "scrollable": false
+      },
+      "members": {
+        "animating": "boolean",
+        "height": "number",
+        "max_x": "number",
+        "max_y": "number",
+        "min_x": "number",
+        "min_y": "number",
+        "scrollable": "boolean",
+        "width": "number",
+        "x": "number",
+        "y": "number"
+      },
       "ok": "object"
     },
     "op.get_selection.required_only": {
-      "members": [
-        "text"
-      ],
+      "members": {
+        "text": "string"
+      },
       "ok": "object"
     },
     "op.get_selection.unknown_member": {
-      "members": [
-        "text"
-      ],
+      "members": {
+        "text": "string"
+      },
       "ok": "object"
     },
     "op.get_text.missing_required": {
       "error": -32602
     },
     "op.get_text.required_only": {
-      "members": [
-        "text"
-      ],
+      "members": {
+        "text": "string"
+      },
       "ok": "object"
     },
     "op.get_text.unknown_member": {
@@ -928,12 +1127,16 @@
       "error": -32602
     },
     "op.get_validity.required_only": {
-      "members": [
-        "flags",
-        "message",
-        "valid",
-        "will_validate"
-      ],
+      "booleans": {
+        "valid": true,
+        "will_validate": true
+      },
+      "members": {
+        "flags": "object",
+        "message": "string",
+        "valid": "boolean",
+        "will_validate": "boolean"
+      },
       "ok": "object"
     },
     "op.get_validity.unknown_member": {
@@ -943,9 +1146,9 @@
       "error": -32602
     },
     "op.get_value.required_only": {
-      "members": [
-        "value"
-      ],
+      "members": {
+        "value": "string"
+      },
       "ok": "object"
     },
     "op.get_value.unknown_member": {
@@ -955,9 +1158,12 @@
       "error": -32602
     },
     "op.has_element.required_only": {
-      "members": [
-        "exists"
-      ],
+      "booleans": {
+        "exists": true
+      },
+      "members": {
+        "exists": "boolean"
+      },
       "ok": "object"
     },
     "op.has_element.unknown_member": {
@@ -967,9 +1173,12 @@
       "error": -32602
     },
     "op.hide_popover.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.hide_popover.unknown_member": {
@@ -979,33 +1188,39 @@
       "error": -32602
     },
     "op.insert_html.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.insert_html.unknown_member": {
       "error": -32602
     },
     "op.list_stylesheets.required_only": {
-      "members": [
-        "sheets"
-      ],
+      "members": {
+        "sheets": "array"
+      },
       "ok": "object"
     },
     "op.list_stylesheets.unknown_member": {
-      "members": [
-        "sheets"
-      ],
+      "members": {
+        "sheets": "array"
+      },
       "ok": "object"
     },
     "op.move_element.missing_required": {
       "error": -32602
     },
     "op.move_element.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.move_element.unknown_member": {
@@ -1015,9 +1230,12 @@
       "error": -32602
     },
     "op.node_batch.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.node_batch.unknown_member": {
@@ -1027,35 +1245,35 @@
       "error": -32602
     },
     "op.node_children.required_only": {
-      "members": [
-        "children",
-        "total"
-      ],
+      "members": {
+        "children": "array",
+        "total": "number"
+      },
       "ok": "object"
     },
     "op.node_children.unknown_member": {
       "error": -32602
     },
     "op.node_of.required_only": {
-      "members": [
-        "node"
-      ],
+      "members": {
+        "node": "string"
+      },
       "ok": "object"
     },
     "op.node_of.unknown_member": {
       "error": -32602
     },
     "op.node_of.with_element": {
-      "members": [
-        "node"
-      ],
+      "members": {
+        "node": "string"
+      },
       "ok": "object"
     },
     "op.purge_unused_resources.required_only": {
-      "members": [
-        "purged",
-        "stats"
-      ],
+      "members": {
+        "purged": "number",
+        "stats": "object"
+      },
       "ok": "object"
     },
     "op.purge_unused_resources.unknown_member": {
@@ -1065,14 +1283,17 @@
       "error": -32602
     },
     "op.query.required_only": {
-      "members": [
-        "ids",
-        "limit",
-        "matched_nodes",
-        "offset",
-        "total",
-        "truncated"
-      ],
+      "booleans": {
+        "truncated": false
+      },
+      "members": {
+        "ids": "array",
+        "limit": "number",
+        "matched_nodes": "number",
+        "offset": "number",
+        "total": "number",
+        "truncated": "boolean"
+      },
       "ok": "object"
     },
     "op.query.unknown_member": {
@@ -1082,11 +1303,11 @@
       "error": -32602
     },
     "op.query_nodes.required_only": {
-      "members": [
-        "nodes",
-        "offset",
-        "total"
-      ],
+      "members": {
+        "nodes": "array",
+        "offset": "number",
+        "total": "number"
+      },
       "ok": "object"
     },
     "op.query_nodes.unknown_member": {
@@ -1096,10 +1317,13 @@
       "error": -32602
     },
     "op.register_resource_bundle.required_only": {
-      "members": [
-        "name",
-        "replaced"
-      ],
+      "booleans": {
+        "replaced": false
+      },
+      "members": {
+        "name": "string",
+        "replaced": "boolean"
+      },
       "ok": "object"
     },
     "op.register_resource_bundle.unknown_member": {
@@ -1109,9 +1333,12 @@
       "error": -32602
     },
     "op.remove_attribute.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.remove_attribute.unknown_member": {
@@ -1121,9 +1348,12 @@
       "error": -32602
     },
     "op.remove_class.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.remove_class.unknown_member": {
@@ -1133,9 +1363,12 @@
       "error": -32602
     },
     "op.remove_element.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.remove_element.unknown_member": {
@@ -1145,9 +1378,12 @@
       "error": -32602
     },
     "op.remove_stylesheet.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.remove_stylesheet.unknown_member": {
@@ -1157,9 +1393,12 @@
       "error": -32602
     },
     "op.replace_children_html.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.replace_children_html.unknown_member": {
@@ -1175,24 +1414,27 @@
       "error": -32602
     },
     "op.replace_control_range.with_element": {
-      "members": [
-        "changed",
-        "direction",
-        "end",
-        "length",
-        "node",
-        "start"
-      ],
+      "booleans": {
+        "changed": true
+      },
+      "members": {
+        "changed": "boolean",
+        "direction": "string",
+        "end": "number",
+        "length": "number",
+        "node": "string",
+        "start": "number"
+      },
       "ok": "object"
     },
     "op.replace_stylesheet.missing_required": {
       "error": -32602
     },
     "op.replace_stylesheet.required_only": {
-      "members": [
-        "diagnostics",
-        "sheet"
-      ],
+      "members": {
+        "diagnostics": "array",
+        "sheet": "number"
+      },
       "ok": "object"
     },
     "op.replace_stylesheet.unknown_member": {
@@ -1205,10 +1447,14 @@
       "error": -32602
     },
     "op.request_submit.with_element": {
-      "members": [
-        "default_prevented",
-        "submitted"
-      ],
+      "booleans": {
+        "default_prevented": false,
+        "submitted": true
+      },
+      "members": {
+        "default_prevented": "boolean",
+        "submitted": "boolean"
+      },
       "ok": "object"
     },
     "op.reset_form.required_only": {
@@ -1218,112 +1464,144 @@
       "error": -32602
     },
     "op.reset_form.with_element": {
-      "members": [
-        "default_prevented",
-        "reset"
-      ],
+      "booleans": {
+        "default_prevented": false,
+        "reset": true
+      },
+      "members": {
+        "default_prevented": "boolean",
+        "reset": "boolean"
+      },
       "ok": "object"
     },
     "op.scroll_by.required_only": {
-      "members": [
-        "animating",
-        "height",
-        "max_x",
-        "max_y",
-        "min_x",
-        "min_y",
-        "scrollable",
-        "width",
-        "x",
-        "y"
-      ],
+      "booleans": {
+        "animating": false,
+        "scrollable": true
+      },
+      "members": {
+        "animating": "boolean",
+        "height": "number",
+        "max_x": "number",
+        "max_y": "number",
+        "min_x": "number",
+        "min_y": "number",
+        "scrollable": "boolean",
+        "width": "number",
+        "x": "number",
+        "y": "number"
+      },
       "ok": "object"
     },
     "op.scroll_by.unknown_member": {
       "error": -32602
     },
     "op.scroll_by.with_element": {
-      "members": [
-        "animating",
-        "height",
-        "max_x",
-        "max_y",
-        "min_x",
-        "min_y",
-        "scrollable",
-        "width",
-        "x",
-        "y"
-      ],
+      "booleans": {
+        "animating": false,
+        "scrollable": false
+      },
+      "members": {
+        "animating": "boolean",
+        "height": "number",
+        "max_x": "number",
+        "max_y": "number",
+        "min_x": "number",
+        "min_y": "number",
+        "scrollable": "boolean",
+        "width": "number",
+        "x": "number",
+        "y": "number"
+      },
       "ok": "object"
     },
     "op.scroll_into_view.missing_required": {
       "error": -32602
     },
     "op.scroll_into_view.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.scroll_into_view.unknown_member": {
       "error": -32602
     },
     "op.scroll_to.required_only": {
-      "members": [
-        "animating",
-        "height",
-        "max_x",
-        "max_y",
-        "min_x",
-        "min_y",
-        "scrollable",
-        "width",
-        "x",
-        "y"
-      ],
+      "booleans": {
+        "animating": false,
+        "scrollable": true
+      },
+      "members": {
+        "animating": "boolean",
+        "height": "number",
+        "max_x": "number",
+        "max_y": "number",
+        "min_x": "number",
+        "min_y": "number",
+        "scrollable": "boolean",
+        "width": "number",
+        "x": "number",
+        "y": "number"
+      },
       "ok": "object"
     },
     "op.scroll_to.unknown_member": {
       "error": -32602
     },
     "op.scroll_to.with_element": {
-      "members": [
-        "animating",
-        "height",
-        "max_x",
-        "max_y",
-        "min_x",
-        "min_y",
-        "scrollable",
-        "width",
-        "x",
-        "y"
-      ],
+      "booleans": {
+        "animating": false,
+        "scrollable": false
+      },
+      "members": {
+        "animating": "boolean",
+        "height": "number",
+        "max_x": "number",
+        "max_y": "number",
+        "min_x": "number",
+        "min_y": "number",
+        "scrollable": "boolean",
+        "width": "number",
+        "x": "number",
+        "y": "number"
+      },
       "ok": "object"
     },
     "op.select_text.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.select_text.unknown_member": {
       "error": -32602
     },
     "op.select_text.with_element": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_attribute.missing_required": {
       "error": -32602
     },
     "op.set_attribute.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_attribute.unknown_member": {
@@ -1333,9 +1611,12 @@
       "error": -32602
     },
     "op.set_checked.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_checked.unknown_member": {
@@ -1351,13 +1632,13 @@
       "error": -32602
     },
     "op.set_control_selection.with_element": {
-      "members": [
-        "direction",
-        "end",
-        "length",
-        "node",
-        "start"
-      ],
+      "members": {
+        "direction": "string",
+        "end": "number",
+        "length": "number",
+        "node": "string",
+        "start": "number"
+      },
       "ok": "object"
     },
     "op.set_custom_validity.missing_required": {
@@ -1370,37 +1651,43 @@
       "error": -32602
     },
     "op.set_custom_validity.with_element": {
-      "members": [
-        "flags",
-        "message",
-        "valid"
-      ],
+      "booleans": {
+        "valid": true
+      },
+      "members": {
+        "flags": "object",
+        "message": "string",
+        "valid": "boolean"
+      },
       "ok": "object"
     },
     "op.set_default_action.missing_required": {
       "error": -32602
     },
     "op.set_default_action.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_default_action.unknown_member": {
       "error": -32602
     },
     "op.set_environment.required_only": {
-      "members": [
-        "color_scheme",
-        "color_scheme_source",
-        "high_contrast",
-        "high_contrast_source",
-        "reduced_motion",
-        "reduced_motion_source",
-        "scale",
-        "system_color_scheme",
-        "system_reduced_motion"
-      ],
+      "members": {
+        "color_scheme": "string",
+        "color_scheme_source": "string",
+        "high_contrast": "null",
+        "high_contrast_source": "string",
+        "reduced_motion": "string",
+        "reduced_motion_source": "string",
+        "scale": "number",
+        "system_color_scheme": "string",
+        "system_reduced_motion": "null"
+      },
       "ok": "object"
     },
     "op.set_environment.unknown_member": {
@@ -1410,36 +1697,48 @@
       "error": -32602
     },
     "op.set_pointer_capture.required_only": {
-      "members": [
-        "accepted"
-      ],
+      "booleans": {
+        "accepted": false
+      },
+      "members": {
+        "accepted": "boolean"
+      },
       "ok": "object"
     },
     "op.set_pointer_capture.unknown_member": {
       "error": -32602
     },
     "op.set_scroll_follow.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_scroll_follow.unknown_member": {
       "error": -32602
     },
     "op.set_scroll_follow.with_element": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_selected_values.missing_required": {
       "error": -32602
     },
     "op.set_selected_values.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_selected_values.unknown_member": {
@@ -1449,9 +1748,12 @@
       "error": -32602
     },
     "op.set_text.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_text.unknown_member": {
@@ -1461,9 +1763,12 @@
       "error": -32602
     },
     "op.set_value.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.set_value.unknown_member": {
@@ -1473,9 +1778,12 @@
       "error": -32602
     },
     "op.show_dialog.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.show_dialog.unknown_member": {
@@ -1485,9 +1793,12 @@
       "error": -32602
     },
     "op.show_popover.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.show_popover.unknown_member": {
@@ -1497,40 +1808,43 @@
       "error": -32602
     },
     "op.text_at_point.required_only": {
-      "members": [
-        "hit"
-      ],
+      "members": {
+        "hit": "object"
+      },
       "ok": "object"
     },
     "op.text_at_point.unknown_member": {
       "error": -32602
     },
     "op.text_rects.required_only": {
-      "members": [
-        "length",
-        "rects",
-        "text"
-      ],
+      "members": {
+        "length": "number",
+        "rects": "array",
+        "text": "string"
+      },
       "ok": "object"
     },
     "op.text_rects.unknown_member": {
       "error": -32602
     },
     "op.text_rects.with_element": {
-      "members": [
-        "length",
-        "rects",
-        "text"
-      ],
+      "members": {
+        "length": "number",
+        "rects": "array",
+        "text": "string"
+      },
       "ok": "object"
     },
     "op.toggle_popover.missing_required": {
       "error": -32602
     },
     "op.toggle_popover.required_only": {
-      "members": [
-        "open"
-      ],
+      "booleans": {
+        "open": false
+      },
+      "members": {
+        "open": "boolean"
+      },
       "ok": "object"
     },
     "op.toggle_popover.unknown_member": {
@@ -1540,9 +1854,12 @@
       "error": -32602
     },
     "op.trim_children.required_only": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "op.trim_children.unknown_member": {
@@ -1552,38 +1869,50 @@
       "error": -32602
     },
     "op.unregister_resource_bundle.required_only": {
-      "members": [
-        "name",
-        "removed"
-      ],
+      "booleans": {
+        "removed": true
+      },
+      "members": {
+        "name": "string",
+        "removed": "boolean"
+      },
       "ok": "object"
     },
     "op.unregister_resource_bundle.unknown_member": {
       "error": -32602
     },
     "probe.get_text.ok": {
-      "members": [
-        "anchor",
-        "cursor",
-        "focused",
-        "preedit",
-        "text"
-      ],
+      "booleans": {
+        "focused": false
+      },
+      "members": {
+        "anchor": "number",
+        "cursor": "number",
+        "focused": "boolean",
+        "preedit": "string",
+        "text": "string"
+      },
       "ok": "object"
     },
     "probe.set_text.ok": {
-      "members": [
-        "updated"
-      ],
+      "booleans": {
+        "updated": true
+      },
+      "members": {
+        "updated": "boolean"
+      },
       "ok": "object"
     },
     "request.cancel.missing_member": {
       "error": -32602
     },
     "request.cancel.unknown_id": {
-      "members": [
-        "cancelled"
-      ],
+      "booleans": {
+        "cancelled": false
+      },
+      "members": {
+        "cancelled": "boolean"
+      },
       "ok": "object"
     },
     "security.second_connection.hello_with_valid_token": {
@@ -1599,35 +1928,45 @@
       "phase": "initializing"
     },
     "window.create.defaults": {
-      "members": [
-        "closing",
-        "height",
-        "native",
-        "observed",
-        "physical_size",
-        "requested",
-        "scale_factor",
-        "title",
-        "visible",
-        "width",
-        "window_id"
-      ],
+      "booleans": {
+        "closing": false,
+        "native": false,
+        "visible": true
+      },
+      "members": {
+        "closing": "boolean",
+        "height": "number",
+        "native": "boolean",
+        "observed": "object",
+        "physical_size": "null",
+        "requested": "object",
+        "scale_factor": "number",
+        "title": "string",
+        "visible": "boolean",
+        "width": "number",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "window.create.ok": {
-      "members": [
-        "closing",
-        "height",
-        "native",
-        "observed",
-        "physical_size",
-        "requested",
-        "scale_factor",
-        "title",
-        "visible",
-        "width",
-        "window_id"
-      ],
+      "booleans": {
+        "closing": false,
+        "native": false,
+        "visible": true
+      },
+      "members": {
+        "closing": "boolean",
+        "height": "number",
+        "native": "boolean",
+        "observed": "object",
+        "physical_size": "null",
+        "requested": "object",
+        "scale_factor": "number",
+        "title": "string",
+        "visible": "boolean",
+        "width": "number",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "window.create.unknown_member": {
@@ -1637,54 +1976,69 @@
       "error": -32602
     },
     "window.get.duplicate_member_last_wins": {
-      "members": [
-        "closing",
-        "height",
-        "native",
-        "observed",
-        "physical_size",
-        "requested",
-        "scale_factor",
-        "title",
-        "visible",
-        "width",
-        "window_id"
-      ],
+      "booleans": {
+        "closing": false,
+        "native": false,
+        "visible": true
+      },
+      "members": {
+        "closing": "boolean",
+        "height": "number",
+        "native": "boolean",
+        "observed": "object",
+        "physical_size": "null",
+        "requested": "object",
+        "scale_factor": "number",
+        "title": "string",
+        "visible": "boolean",
+        "width": "number",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "window.get.duplicate_member_raw": {
-      "members": [
-        "closing",
-        "height",
-        "native",
-        "observed",
-        "physical_size",
-        "requested",
-        "scale_factor",
-        "title",
-        "visible",
-        "width",
-        "window_id"
-      ],
+      "booleans": {
+        "closing": false,
+        "native": false,
+        "visible": true
+      },
+      "members": {
+        "closing": "boolean",
+        "height": "number",
+        "native": "boolean",
+        "observed": "object",
+        "physical_size": "null",
+        "requested": "object",
+        "scale_factor": "number",
+        "title": "string",
+        "visible": "boolean",
+        "width": "number",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "window.get.missing_member": {
       "error": -32602
     },
     "window.get.ok": {
-      "members": [
-        "closing",
-        "height",
-        "native",
-        "observed",
-        "physical_size",
-        "requested",
-        "scale_factor",
-        "title",
-        "visible",
-        "width",
-        "window_id"
-      ],
+      "booleans": {
+        "closing": false,
+        "native": false,
+        "visible": true
+      },
+      "members": {
+        "closing": "boolean",
+        "height": "number",
+        "native": "boolean",
+        "observed": "object",
+        "physical_size": "null",
+        "requested": "object",
+        "scale_factor": "number",
+        "title": "string",
+        "visible": "boolean",
+        "width": "number",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "window.get.unknown_member": {
@@ -1694,38 +2048,47 @@
       "error": -32004
     },
     "window.list.ok": {
+      "length": 2,
       "ok": "array"
     },
     "window.request_attention.ok": {
       "error": -32001
     },
     "window.request_close.ok": {
-      "members": [
-        "requested"
-      ],
+      "booleans": {
+        "requested": true
+      },
+      "members": {
+        "requested": "boolean"
+      },
       "ok": "object"
     },
     "window.set.ok": {
-      "members": [
-        "closing",
-        "height",
-        "native",
-        "observed",
-        "physical_size",
-        "requested",
-        "scale_factor",
-        "title",
-        "visible",
-        "width",
-        "window_id"
-      ],
+      "booleans": {
+        "closing": false,
+        "native": false,
+        "visible": true
+      },
+      "members": {
+        "closing": "boolean",
+        "height": "number",
+        "native": "boolean",
+        "observed": "object",
+        "physical_size": "null",
+        "requested": "object",
+        "scale_factor": "number",
+        "title": "string",
+        "visible": "boolean",
+        "width": "number",
+        "window_id": "string"
+      },
       "ok": "object"
     },
     "window.set.unknown_member": {
       "error": -32602
     }
   },
-  "host_version": "1.0.1",
+  "host_version": "1.0.2",
   "mode": "headless; native GUI behavior is qualified separately",
   "protocol_version": 1,
   "schema": 1

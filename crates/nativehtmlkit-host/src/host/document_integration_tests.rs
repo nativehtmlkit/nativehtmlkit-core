@@ -531,3 +531,57 @@ fn registered_keydown_policy_suppresses_the_paired_native_text_only() {
     host.document_input("w1", Input::Text("y".into()), None);
     assert_eq!(engine(&mut host).get_value("text").unwrap(), "y");
 }
+
+/// CORE-A-02 (aggregate): the per-document 64 MiB transport budget must not add up to 1 GiB of
+/// tmpfs across documents; the host-wide budget refuses further bitmaps with BUSY (-32005).
+#[test]
+fn live_bitmap_transport_has_a_host_wide_budget() {
+    let mut host = super::tests::controller(true);
+    let mut created = 0;
+    let mut refused = None;
+    for n in 1..=5 {
+        let window = format!("w{n}");
+        super::tests::add_window(&mut host, &window);
+        let document = load(&mut host, &window, "<p>x</p>");
+        // 4096 x 2048 RGBA8 x 2 slots = 64 MiB, the per-document maximum.
+        let outcome = host.dispatch(
+            "bitmap.create",
+            json!({"window_id":window,"document_id":document,"bitmap_id":"b",
+                    "width":4096,"height":2048,"slots":2}),
+            None,
+            None,
+        );
+        match outcome {
+            Ok(_) => created += 1,
+            Err(error) => {
+                refused = Some(error);
+                break;
+            }
+        }
+    }
+    assert_eq!(
+        created, 4,
+        "256 MiB host budget admits four 64 MiB transports"
+    );
+    let error = refused.expect("the fifth transport must be refused");
+    assert_eq!(error.code, protocol::code::BUSY);
+    // Closing one releases its share of the budget.
+    let doc1 = host.windows["w1"].document.as_ref().unwrap().id.clone();
+    host.dispatch(
+        "bitmap.close",
+        json!({"window_id":"w1","document_id":doc1,"bitmap_id":"b"}),
+        None,
+        None,
+    )
+    .unwrap();
+    let doc5 = host.windows["w5"].document.as_ref().unwrap().id.clone();
+    assert!(host
+        .dispatch(
+            "bitmap.create",
+            json!({"window_id":"w5","document_id":doc5,"bitmap_id":"b",
+                "width":4096,"height":2048,"slots":2}),
+            None,
+            None,
+        )
+        .is_ok());
+}
