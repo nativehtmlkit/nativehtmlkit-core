@@ -1,0 +1,2843 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nativehtmlkit.dev/protocol/v1/document-command.schema.json",
+  "title": "NativeHTMLKit protocol v1 document.command `command` object",
+  "description": "Generated from DocumentCommand (serde tag=op, deny_unknown_fields). Do not edit.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/op_add_class"
+    },
+    {
+      "$ref": "#/$defs/op_add_stylesheet"
+    },
+    {
+      "$ref": "#/$defs/op_append_text"
+    },
+    {
+      "$ref": "#/$defs/op_batch"
+    },
+    {
+      "$ref": "#/$defs/op_blur"
+    },
+    {
+      "$ref": "#/$defs/op_check_validity"
+    },
+    {
+      "$ref": "#/$defs/op_clear_selection"
+    },
+    {
+      "$ref": "#/$defs/op_close_dialog"
+    },
+    {
+      "$ref": "#/$defs/op_copy_selection"
+    },
+    {
+      "$ref": "#/$defs/op_css_profile"
+    },
+    {
+      "$ref": "#/$defs/op_edit_command"
+    },
+    {
+      "$ref": "#/$defs/op_element_at_point"
+    },
+    {
+      "$ref": "#/$defs/op_explain"
+    },
+    {
+      "$ref": "#/$defs/op_focus"
+    },
+    {
+      "$ref": "#/$defs/op_get_accessibility_tree"
+    },
+    {
+      "$ref": "#/$defs/op_get_attribute"
+    },
+    {
+      "$ref": "#/$defs/op_get_attributes"
+    },
+    {
+      "$ref": "#/$defs/op_get_checked"
+    },
+    {
+      "$ref": "#/$defs/op_get_computed_style"
+    },
+    {
+      "$ref": "#/$defs/op_get_control_selection"
+    },
+    {
+      "$ref": "#/$defs/op_get_diagnostics"
+    },
+    {
+      "$ref": "#/$defs/op_get_dialog"
+    },
+    {
+      "$ref": "#/$defs/op_get_environment"
+    },
+    {
+      "$ref": "#/$defs/op_get_files"
+    },
+    {
+      "$ref": "#/$defs/op_get_focused_element"
+    },
+    {
+      "$ref": "#/$defs/op_get_form_data"
+    },
+    {
+      "$ref": "#/$defs/op_get_html"
+    },
+    {
+      "$ref": "#/$defs/op_get_node"
+    },
+    {
+      "$ref": "#/$defs/op_get_options"
+    },
+    {
+      "$ref": "#/$defs/op_get_pointer_capture"
+    },
+    {
+      "$ref": "#/$defs/op_get_popover"
+    },
+    {
+      "$ref": "#/$defs/op_get_rect"
+    },
+    {
+      "$ref": "#/$defs/op_get_resource_stats"
+    },
+    {
+      "$ref": "#/$defs/op_get_scroll"
+    },
+    {
+      "$ref": "#/$defs/op_get_selection"
+    },
+    {
+      "$ref": "#/$defs/op_get_text"
+    },
+    {
+      "$ref": "#/$defs/op_get_validity"
+    },
+    {
+      "$ref": "#/$defs/op_get_value"
+    },
+    {
+      "$ref": "#/$defs/op_has_element"
+    },
+    {
+      "$ref": "#/$defs/op_hide_popover"
+    },
+    {
+      "$ref": "#/$defs/op_insert_html"
+    },
+    {
+      "$ref": "#/$defs/op_list_stylesheets"
+    },
+    {
+      "$ref": "#/$defs/op_move_element"
+    },
+    {
+      "$ref": "#/$defs/op_node_batch"
+    },
+    {
+      "$ref": "#/$defs/op_node_children"
+    },
+    {
+      "$ref": "#/$defs/op_node_of"
+    },
+    {
+      "$ref": "#/$defs/op_purge_unused_resources"
+    },
+    {
+      "$ref": "#/$defs/op_query"
+    },
+    {
+      "$ref": "#/$defs/op_query_nodes"
+    },
+    {
+      "$ref": "#/$defs/op_register_resource_bundle"
+    },
+    {
+      "$ref": "#/$defs/op_remove_attribute"
+    },
+    {
+      "$ref": "#/$defs/op_remove_class"
+    },
+    {
+      "$ref": "#/$defs/op_remove_element"
+    },
+    {
+      "$ref": "#/$defs/op_remove_stylesheet"
+    },
+    {
+      "$ref": "#/$defs/op_replace_children_html"
+    },
+    {
+      "$ref": "#/$defs/op_replace_control_range"
+    },
+    {
+      "$ref": "#/$defs/op_replace_stylesheet"
+    },
+    {
+      "$ref": "#/$defs/op_request_submit"
+    },
+    {
+      "$ref": "#/$defs/op_reset_form"
+    },
+    {
+      "$ref": "#/$defs/op_scroll_by"
+    },
+    {
+      "$ref": "#/$defs/op_scroll_into_view"
+    },
+    {
+      "$ref": "#/$defs/op_scroll_to"
+    },
+    {
+      "$ref": "#/$defs/op_select_text"
+    },
+    {
+      "$ref": "#/$defs/op_set_attribute"
+    },
+    {
+      "$ref": "#/$defs/op_set_checked"
+    },
+    {
+      "$ref": "#/$defs/op_set_control_selection"
+    },
+    {
+      "$ref": "#/$defs/op_set_custom_validity"
+    },
+    {
+      "$ref": "#/$defs/op_set_default_action"
+    },
+    {
+      "$ref": "#/$defs/op_set_environment"
+    },
+    {
+      "$ref": "#/$defs/op_set_pointer_capture"
+    },
+    {
+      "$ref": "#/$defs/op_set_scroll_follow"
+    },
+    {
+      "$ref": "#/$defs/op_set_selected_values"
+    },
+    {
+      "$ref": "#/$defs/op_set_text"
+    },
+    {
+      "$ref": "#/$defs/op_set_value"
+    },
+    {
+      "$ref": "#/$defs/op_show_dialog"
+    },
+    {
+      "$ref": "#/$defs/op_show_popover"
+    },
+    {
+      "$ref": "#/$defs/op_text_at_point"
+    },
+    {
+      "$ref": "#/$defs/op_text_rects"
+    },
+    {
+      "$ref": "#/$defs/op_toggle_popover"
+    },
+    {
+      "$ref": "#/$defs/op_trim_children"
+    },
+    {
+      "$ref": "#/$defs/op_unregister_resource_bundle"
+    }
+  ],
+  "$defs": {
+    "op_add_class": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "add_class"
+        },
+        "element": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "op_add_stylesheet": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "add_stylesheet"
+        },
+        "css": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "css"
+      ],
+      "additionalProperties": false
+    },
+    "op_append_text": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "append_text"
+        },
+        "element": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "op_batch": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "batch"
+        },
+        "ops": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BatchOp"
+          }
+        }
+      },
+      "required": [
+        "op",
+        "ops"
+      ],
+      "additionalProperties": false
+    },
+    "op_blur": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "blur"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()"
+      }
+    },
+    "op_check_validity": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "check_validity"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_clear_selection": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "clear_selection"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_close_dialog": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "close_dialog"
+        },
+        "element": {
+          "type": "string"
+        },
+        "return_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "return_value": "Default::default()"
+      }
+    },
+    "op_copy_selection": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "copy_selection"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_css_profile": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "css_profile"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_edit_command": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "edit_command"
+        },
+        "command": {
+          "type": "string"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "command"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()"
+      }
+    },
+    "op_element_at_point": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "element_at_point"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "op",
+        "x",
+        "y"
+      ],
+      "additionalProperties": false
+    },
+    "op_explain": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "explain"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "property": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()",
+        "property": "Default::default()"
+      }
+    },
+    "op_focus": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "focus"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()"
+      }
+    },
+    "op_get_accessibility_tree": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_accessibility_tree"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_get_attribute": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_attribute"
+        },
+        "element": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_attributes": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_attributes"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_checked": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_checked"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_computed_style": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_computed_style"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "op",
+        "properties"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()"
+      }
+    },
+    "op_get_control_selection": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_control_selection"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()"
+      }
+    },
+    "op_get_diagnostics": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_diagnostics"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_get_dialog": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_dialog"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_environment": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_environment"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_get_files": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_files"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_focused_element": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_focused_element"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_get_form_data": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_form_data"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "submitter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "submitter_node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()",
+        "submitter": "Default::default()",
+        "submitter_node": "Default::default()"
+      }
+    },
+    "op_get_html": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_html"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outer": {
+          "type": "boolean"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()",
+        "outer": "Default::default()",
+        "offset": "Default::default()",
+        "limit": "Default::default()"
+      }
+    },
+    "op_get_node": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_node"
+        },
+        "node": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "node"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_options": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_options"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_pointer_capture": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_pointer_capture"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_get_popover": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_popover"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_rect": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_rect"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_resource_stats": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_resource_stats"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_get_scroll": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_scroll"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()"
+      }
+    },
+    "op_get_selection": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_selection"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_get_text": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_text"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_validity": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_validity"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_get_value": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "get_value"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_has_element": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "has_element"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_hide_popover": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "hide_popover"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_insert_html": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "insert_html"
+        },
+        "element": {
+          "type": "string"
+        },
+        "position": {
+          "type": "string"
+        },
+        "html": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "position",
+        "html"
+      ],
+      "additionalProperties": false
+    },
+    "op_list_stylesheets": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "list_stylesheets"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "x-unknown-members": "ignored (protocol v1 behavior of parameterless ops)"
+    },
+    "op_move_element": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "move_element"
+        },
+        "element": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "position": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "target",
+        "position"
+      ],
+      "additionalProperties": false
+    },
+    "op_node_batch": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "node_batch"
+        },
+        "ops": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NodeBatchOp"
+          }
+        }
+      },
+      "required": [
+        "op",
+        "ops"
+      ],
+      "additionalProperties": false
+    },
+    "op_node_children": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "node_children"
+        },
+        "node": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "op",
+        "node"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "offset": "Default::default()",
+        "limit": "children_limit()"
+      }
+    },
+    "op_node_of": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "node_of"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()"
+      }
+    },
+    "op_purge_unused_resources": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "purge_unused_resources"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "url": "Default::default()"
+      }
+    },
+    "op_query": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "query"
+        },
+        "selector": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "op",
+        "selector"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "limit": "query_limit()",
+        "offset": "Default::default()"
+      }
+    },
+    "op_query_nodes": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "query_nodes"
+        },
+        "selector": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "op",
+        "selector"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "offset": "Default::default()",
+        "limit": "query_limit()"
+      }
+    },
+    "op_register_resource_bundle": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "register_resource_bundle"
+        },
+        "name": {
+          "type": "string"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResourceEntry"
+          }
+        }
+      },
+      "required": [
+        "op",
+        "name",
+        "entries"
+      ],
+      "additionalProperties": false
+    },
+    "op_remove_attribute": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "remove_attribute"
+        },
+        "element": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "op_remove_class": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "remove_class"
+        },
+        "element": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "op_remove_element": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "remove_element"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_remove_stylesheet": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "remove_stylesheet"
+        },
+        "sheet": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "op",
+        "sheet"
+      ],
+      "additionalProperties": false
+    },
+    "op_replace_children_html": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "replace_children_html"
+        },
+        "element": {
+          "type": "string"
+        },
+        "html": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "html"
+      ],
+      "additionalProperties": false
+    },
+    "op_replace_control_range": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "replace_control_range"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replacement": {
+          "type": "string"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "selection_mode": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "replacement"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()",
+        "start": "Default::default()",
+        "end": "Default::default()",
+        "selection_mode": "preserve_selection()"
+      }
+    },
+    "op_replace_stylesheet": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "replace_stylesheet"
+        },
+        "sheet": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "css": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "sheet",
+        "css"
+      ],
+      "additionalProperties": false
+    },
+    "op_request_submit": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "request_submit"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "submitter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "submitter_node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()",
+        "submitter": "Default::default()",
+        "submitter_node": "Default::default()"
+      }
+    },
+    "op_reset_form": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "reset_form"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()"
+      }
+    },
+    "op_scroll_by": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "scroll_by"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dx": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "behavior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "dx": "Default::default()",
+        "dy": "Default::default()",
+        "behavior": "Default::default()"
+      }
+    },
+    "op_scroll_into_view": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "scroll_into_view"
+        },
+        "element": {
+          "type": "string"
+        },
+        "block": {
+          "type": "string"
+        },
+        "inline": {
+          "type": "string"
+        },
+        "behavior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "block": "nearest()",
+        "inline": "nearest()",
+        "behavior": "Default::default()"
+      }
+    },
+    "op_scroll_to": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "scroll_to"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "x": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "y": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "behavior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "x": "Default::default()",
+        "y": "Default::default()",
+        "behavior": "Default::default()"
+      }
+    },
+    "op_select_text": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "select_text"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()"
+      }
+    },
+    "op_set_attribute": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_attribute"
+        },
+        "element": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "name",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "op_set_checked": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_checked"
+        },
+        "element": {
+          "type": "string"
+        },
+        "checked": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "checked"
+      ],
+      "additionalProperties": false
+    },
+    "op_set_control_selection": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_control_selection"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "direction": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "start",
+        "end"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()",
+        "direction": "no_direction()"
+      }
+    },
+    "op_set_custom_validity": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_custom_validity"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "message"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()"
+      }
+    },
+    "op_set_default_action": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_default_action"
+        },
+        "element": {
+          "type": "string"
+        },
+        "event": {
+          "type": "string"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shift": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ctrl": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "alt": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "meta": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prevent": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "event"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "key": "Default::default()",
+        "shift": "Default::default()",
+        "ctrl": "Default::default()",
+        "alt": "Default::default()",
+        "meta": "Default::default()",
+        "prevent": "yes()"
+      }
+    },
+    "op_set_environment": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_environment"
+        },
+        "color_scheme": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reduced_motion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "color_scheme": "Default::default()",
+        "reduced_motion": "Default::default()"
+      }
+    },
+    "op_set_pointer_capture": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_pointer_capture"
+        },
+        "element": {
+          "type": "string"
+        },
+        "pointer_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "capture": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "pointer_id": "mouse_pointer()",
+        "capture": "yes()"
+      }
+    },
+    "op_set_scroll_follow": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_scroll_follow"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "follow": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "follow": "yes()"
+      }
+    },
+    "op_set_selected_values": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_selected_values"
+        },
+        "element": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "values"
+      ],
+      "additionalProperties": false
+    },
+    "op_set_text": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_text"
+        },
+        "element": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "op_set_value": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set_value"
+        },
+        "element": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "op_show_dialog": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "show_dialog"
+        },
+        "element": {
+          "type": "string"
+        },
+        "modal": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "modal": "yes()"
+      }
+    },
+    "op_show_popover": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "show_popover"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_text_at_point": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "text_at_point"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "op",
+        "x",
+        "y"
+      ],
+      "additionalProperties": false
+    },
+    "op_text_rects": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "text_rects"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "element": "Default::default()",
+        "node": "Default::default()",
+        "start": "Default::default()",
+        "end": "Default::default()"
+      }
+    },
+    "op_toggle_popover": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "toggle_popover"
+        },
+        "element": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "op_trim_children": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "trim_children"
+        },
+        "element": {
+          "type": "string"
+        },
+        "keep": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "from": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element",
+        "keep"
+      ],
+      "additionalProperties": false,
+      "x-rust-defaults": {
+        "from": "start()"
+      }
+    },
+    "op_unregister_resource_bundle": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "unregister_resource_bundle"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "ResourceEntry": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "data_url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "data_url"
+      ],
+      "additionalProperties": false
+    },
+    "NodeBatchOp": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "set_text"
+            },
+            "node": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "set_attribute"
+            },
+            "node": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "name",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "remove_attribute"
+            },
+            "node": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "add_class"
+            },
+            "node": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "remove_class"
+            },
+            "node": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "insert_html"
+            },
+            "node": {
+              "type": "string"
+            },
+            "position": {
+              "type": "string"
+            },
+            "html": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "position",
+            "html"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "replace_children_html"
+            },
+            "node": {
+              "type": "string"
+            },
+            "html": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "html"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "remove_element"
+            },
+            "node": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "move_element"
+            },
+            "node": {
+              "type": "string"
+            },
+            "target_node": {
+              "type": "string"
+            },
+            "position": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "target_node",
+            "position"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "append_text"
+            },
+            "node": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "trim_children"
+            },
+            "node": {
+              "type": "string"
+            },
+            "keep": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "from": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "node",
+            "keep"
+          ],
+          "additionalProperties": false,
+          "x-rust-defaults": {
+            "from": "start()"
+          }
+        }
+      ]
+    },
+    "BatchOp": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "set_text"
+            },
+            "element": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "set_attribute"
+            },
+            "element": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "name",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "remove_attribute"
+            },
+            "element": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "add_class"
+            },
+            "element": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "remove_class"
+            },
+            "element": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "insert_html"
+            },
+            "element": {
+              "type": "string"
+            },
+            "position": {
+              "type": "string"
+            },
+            "html": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "position",
+            "html"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "replace_children_html"
+            },
+            "element": {
+              "type": "string"
+            },
+            "html": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "html"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "remove_element"
+            },
+            "element": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "move_element"
+            },
+            "element": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "position": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "target",
+            "position"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "append_text"
+            },
+            "element": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "trim_children"
+            },
+            "element": {
+              "type": "string"
+            },
+            "keep": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "from": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "element",
+            "keep"
+          ],
+          "additionalProperties": false,
+          "x-rust-defaults": {
+            "from": "start()"
+          }
+        }
+      ]
+    }
+  }
+}

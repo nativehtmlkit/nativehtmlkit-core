@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "window.request_attention params (Rust Attention)",
+  "type": "object",
+  "properties": {
+    "window_id": {
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "window_id"
+  ],
+  "additionalProperties": false
+}

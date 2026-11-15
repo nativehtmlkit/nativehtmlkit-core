@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "window.create params (Rust CreateWindow)",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "visible": {
+      "type": "boolean"
+    },
+    "resizable": {
+      "type": "boolean"
+    },
+    "decorations": {
+      "type": "boolean"
+    },
+    "min_width": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "min_height": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_width": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_height": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [],
+  "additionalProperties": false,
+  "x-rust-defaults": {
+    "title": "Default::default()",
+    "width": "default_width()",
+    "height": "default_height()",
+    "visible": "yes()",
+    "resizable": "yes()",
+    "decorations": "yes()"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dialog.save_file params (Rust DialogParams)",
+  "type": "object",
+  "properties": {
+    "window_id": {
+      "type": "string"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "directory": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "file system path"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "file_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "filters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/DialogFilter"
+      }
+    },
+    "multiple": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "window_id"
+  ],
+  "additionalProperties": false,
+  "x-rust-defaults": {
+    "filters": "Default::default()",
+    "multiple": "yes()"
+  },
+  "$defs": {
+    "DialogFilter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "extensions"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

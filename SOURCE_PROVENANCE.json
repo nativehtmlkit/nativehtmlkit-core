@@ -1,0 +1,13 @@
+{
+  "source": "ui4me-core-main(7).zip",
+  "source_sha256": "2ec944224758994253675165671ad2858c7f6bde9c7c4e80af528a833a2e2bd5",
+  "source_workspace_version": "1.0.1",
+  "migration": "Source-preserving Rust crate rename; v1 wire identifier compatibility retained; test-only legacy clients outside product repositories",
+  "core_crates": [
+    "nativehtmlkit-assets",
+    "nativehtmlkit-document",
+    "nativehtmlkit-engine-types",
+    "nativehtmlkit-host",
+    "nativehtmlkit-renderer"
+  ]
+}

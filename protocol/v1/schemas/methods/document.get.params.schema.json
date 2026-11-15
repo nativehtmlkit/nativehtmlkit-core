@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "document.get params (Rust WindowDocument)",
+  "type": "object",
+  "properties": {
+    "window_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "window_id"
+  ],
+  "additionalProperties": false
+}

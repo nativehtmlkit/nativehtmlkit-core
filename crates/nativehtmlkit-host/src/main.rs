@@ -1,0 +1,123 @@
+use anyhow::Result;
+use clap::{Parser, Subcommand};
+use nativehtmlkit_host::{config::AppConfig, host, platform};
+use std::path::PathBuf;
+
+#[derive(Parser)]
+#[command(
+    name = "nativehtmlkit-host",
+    version,
+    about = "NativeHTMLKit native application host"
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+#[derive(Subcommand)]
+enum Command {
+    /// Launch the backend described by a TOML application manifest.
+    Run {
+        #[arg(long)]
+        app: PathBuf,
+        /// Exercise protocol/lifecycle without claiming desktop integration.
+        #[arg(long)]
+        headless: bool,
+        /// Explicit Linux diagnostic mode without systemd user containment.
+        #[arg(long)]
+        allow_unsupervised: bool,
+    },
+    /// Native input, clipboard, dialogs and accessibility probe without Python.
+    Probe {
+        #[arg(long)]
+        allow_unsupervised: bool,
+    },
+    /// Render an HTML screen to a diagnostic PNG without a desktop or backend.
+    Render {
+        #[arg(long)]
+        html: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+        /// Viewport width in CSS pixels.
+        #[arg(long, default_value_t = 900)]
+        width: u32,
+        /// Viewport height in CSS pixels.
+        #[arg(long, default_value_t = 600)]
+        height: u32,
+        #[arg(long, default_value_t = 1.0)]
+        scale: f64,
+    },
+    /// Print environment facts, not a claim of native qualification.
+    Doctor,
+}
+
+fn execute() -> Result<i32> {
+    let cli = Cli::parse();
+    // Set only before starting threads. These are explicit launcher choices,
+    // never inferred silently from a missing desktop/service manager.
+    let headless = matches!(
+        cli.command,
+        Command::Run { headless: true, .. } | Command::Render { .. }
+    );
+    let unsupervised = matches!(
+        cli.command,
+        Command::Run {
+            allow_unsupervised: true,
+            ..
+        } | Command::Probe {
+            allow_unsupervised: true
+        }
+    );
+    if headless {
+        std::env::set_var("UI4ME_TEST_MODE", "1");
+    } else if !matches!(cli.command, Command::Doctor) {
+        platform::detach_owned_console();
+    }
+    if unsupervised {
+        std::env::set_var("UI4ME_ALLOW_UNSUPERVISED", "1");
+    }
+    let _logging = nativehtmlkit_host::logging::init()?;
+    if matches!(cli.command, Command::Doctor) {
+        println!("{}", serde_json::to_string_pretty(&host::doctor())?);
+        return Ok(0);
+    }
+    if let Command::Render {
+        ref html,
+        ref output,
+        width,
+        height,
+        scale,
+    } = cli.command
+    {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&nativehtmlkit_host::snapshot::render(
+                html, output, width, height, scale
+            )?)?
+        );
+        return Ok(0);
+    }
+    if unsupervised {
+        tracing::warn!("explicit diagnostic containment selected; this does not qualify hard-host-death cleanup on Linux");
+    }
+    if let Some(code) =
+        platform::bootstrap_supervised(&std::env::args_os().skip(1).collect::<Vec<_>>())?
+    {
+        return Ok(code);
+    }
+    match cli.command {
+        Command::Run { app, headless, .. } => host::run(AppConfig::load(&app)?, headless),
+        Command::Probe { .. } => host::run_probe(),
+        Command::Doctor | Command::Render { .. } => unreachable!(),
+    }
+}
+
+fn main() {
+    let code = match execute() {
+        Ok(code) => code,
+        Err(error) => {
+            eprintln!("nativehtmlkit-host: {error:#}");
+            1
+        }
+    };
+    std::process::exit(code);
+}

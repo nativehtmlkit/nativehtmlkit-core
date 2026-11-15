@@ -1,0 +1,1732 @@
+{
+  "cases": {
+    "app.ready.again": {
+      "error": -32008
+    },
+    "app.ready.before_window": {
+      "error": -32008
+    },
+    "app.ready.ok": {
+      "members": [
+        "ready"
+      ],
+      "ok": "object"
+    },
+    "app.request_quit.ok": {
+      "members": [
+        "requested"
+      ],
+      "ok": "object"
+    },
+    "auth.before_hello.window.list": {
+      "error": -32011
+    },
+    "auth.hello.again": {
+      "error": -32005
+    },
+    "auth.hello.missing_token": {
+      "error": -32011
+    },
+    "auth.hello.ok_with_unknown_member": {
+      "members": [
+        "app_id",
+        "capabilities",
+        "host_version",
+        "protocol_version"
+      ],
+      "ok": "object"
+    },
+    "auth.hello.wrong_token": {
+      "error": -32011
+    },
+    "auth.hello.wrong_version": {
+      "error": -32010
+    },
+    "bitmap.close.again": {
+      "members": [
+        "closed"
+      ],
+      "ok": "object"
+    },
+    "bitmap.close.ok": {
+      "members": [
+        "closed"
+      ],
+      "ok": "object"
+    },
+    "bitmap.create.bad_format": {
+      "error": -32602
+    },
+    "bitmap.create.ok": {
+      "members": [
+        "bitmap_id",
+        "height",
+        "owner",
+        "path",
+        "pixel_format",
+        "slot_bytes",
+        "slots",
+        "stride",
+        "width"
+      ],
+      "ok": "object"
+    },
+    "clipboard.read_text.headless": {
+      "error": -32001
+    },
+    "clipboard.write_text.headless": {
+      "error": -32001
+    },
+    "clipboard.write_text.unknown_member": {
+      "error": -32602
+    },
+    "desktop.open_external.headless": {
+      "error": -32001
+    },
+    "desktop.paths.ok": {
+      "members": [
+        "cache",
+        "config",
+        "data",
+        "runtime",
+        "state"
+      ],
+      "ok": "object"
+    },
+    "desktop.preferences.ok": {
+      "members": [
+        "available",
+        "color_scheme",
+        "high_contrast",
+        "reduced_motion",
+        "revision",
+        "scope",
+        "source"
+      ],
+      "ok": "object"
+    },
+    "desktop.reveal_file.relative_path": {
+      "error": -32602
+    },
+    "dialog.choose_folder.headless": {
+      "error": -32001
+    },
+    "dialog.open_files.headless": {
+      "error": -32001
+    },
+    "dialog.open_files.unknown_member": {
+      "error": -32001
+    },
+    "dialog.save_file.headless": {
+      "error": -32001
+    },
+    "document.command.missing_op": {
+      "error": -32602
+    },
+    "document.command.stale_document": {
+      "error": -32004
+    },
+    "document.command.unknown_op": {
+      "error": -32602
+    },
+    "document.command.unknown_outer_member": {
+      "error": -32602
+    },
+    "document.get.empty": {
+      "members": [
+        "document_id",
+        "loaded",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "document.get.loaded": {
+      "members": [
+        "asset_root",
+        "document_id",
+        "loaded",
+        "pending_resources",
+        "renderer",
+        "source",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "document.load.both_sources": {
+      "error": -32602
+    },
+    "document.load.neither_source": {
+      "error": -32602
+    },
+    "document.load.ok": {
+      "members": [
+        "asset_root",
+        "document_id",
+        "loaded",
+        "pending_resources",
+        "renderer",
+        "source",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "document.load.oversize_html": {
+      "error": -32005
+    },
+    "document.load.unknown_member": {
+      "error": -32602
+    },
+    "document.unload.again": {
+      "error": -32004
+    },
+    "document.unload.ok": {
+      "members": [
+        "document_id",
+        "loaded",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "envelope.batch_array": {
+      "no_response": true
+    },
+    "envelope.duplicate_id_key_last_wins": {
+      "ok": "array"
+    },
+    "envelope.duplicate_method_key_last_wins": {
+      "members": [
+        "accessibility",
+        "capability_schema",
+        "clipboard_text",
+        "containment",
+        "css_profile",
+        "drag_drop",
+        "external_open",
+        "features",
+        "file_dialogs",
+        "headless",
+        "html_css",
+        "ime",
+        "legacy_flags",
+        "limits",
+        "max_documents",
+        "max_windows",
+        "native",
+        "native_preferences",
+        "native_qualification",
+        "platform",
+        "printing",
+        "probe",
+        "qualification",
+        "renderer",
+        "tray",
+        "window_positioning",
+        "windows"
+      ],
+      "ok": "object"
+    },
+    "envelope.id_control_char": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.id_empty": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.id_null": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.id_number": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.id_too_long": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.jsonrpc_1_0": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.jsonrpc_missing": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.method_bad_chars": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.method_number": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.method_rpc_reserved": {
+      "error": -32600,
+      "id": null
+    },
+    "envelope.method_unknown": {
+      "error": -32601
+    },
+    "envelope.notification_invalid_params": {
+      "no_response": true
+    },
+    "envelope.notification_unknown_method": {
+      "no_response": true
+    },
+    "envelope.object_without_method": {
+      "no_response": true
+    },
+    "envelope.params_array": {
+      "error": -32602,
+      "id": null
+    },
+    "envelope.params_null": {
+      "error": -32602,
+      "id": null
+    },
+    "envelope.params_omitted": {
+      "ok": "array"
+    },
+    "envelope.response_from_client_unsolicited": {
+      "no_response": true
+    },
+    "envelope.unknown_member": {
+      "error": -32600,
+      "id": null
+    },
+    "host.capabilities.ok": {
+      "members": [
+        "accessibility",
+        "capability_schema",
+        "clipboard_text",
+        "containment",
+        "css_profile",
+        "drag_drop",
+        "external_open",
+        "features",
+        "file_dialogs",
+        "headless",
+        "html_css",
+        "ime",
+        "legacy_flags",
+        "limits",
+        "max_documents",
+        "max_windows",
+        "native",
+        "native_preferences",
+        "native_qualification",
+        "platform",
+        "printing",
+        "probe",
+        "qualification",
+        "renderer",
+        "tray",
+        "window_positioning",
+        "windows"
+      ],
+      "ok": "object"
+    },
+    "host.capabilities.unknown_member_ignored": {
+      "members": [
+        "accessibility",
+        "capability_schema",
+        "clipboard_text",
+        "containment",
+        "css_profile",
+        "drag_drop",
+        "external_open",
+        "features",
+        "file_dialogs",
+        "headless",
+        "html_css",
+        "ime",
+        "legacy_flags",
+        "limits",
+        "max_documents",
+        "max_windows",
+        "native",
+        "native_preferences",
+        "native_qualification",
+        "platform",
+        "printing",
+        "probe",
+        "qualification",
+        "renderer",
+        "tray",
+        "window_positioning",
+        "windows"
+      ],
+      "ok": "object"
+    },
+    "host.diagnostics.ok": {
+      "members": [
+        "backend_pid",
+        "containment",
+        "logging",
+        "pending_jobs",
+        "pending_transfers",
+        "phase",
+        "pid",
+        "windows"
+      ],
+      "ok": "object"
+    },
+    "lifecycle.after_shutdown.host.diagnostics": {
+      "members": [
+        "backend_pid",
+        "containment",
+        "logging",
+        "pending_jobs",
+        "pending_transfers",
+        "phase",
+        "pid",
+        "windows"
+      ],
+      "ok": "object"
+    },
+    "lifecycle.after_shutdown.window.list": {
+      "error": -32008
+    },
+    "lifecycle.app.before_quit.params": [
+      "reason"
+    ],
+    "lifecycle.app.shutdown.params": [
+      "deadline_ms"
+    ],
+    "lifecycle.quit.requested": true,
+    "lifecycle.window.before_close.params": [
+      "reason",
+      "window_id"
+    ],
+    "op.add_class.missing_required": {
+      "error": -32602
+    },
+    "op.add_class.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.add_class.unknown_member": {
+      "error": -32602
+    },
+    "op.add_stylesheet.missing_required": {
+      "error": -32602
+    },
+    "op.add_stylesheet.required_only": {
+      "members": [
+        "diagnostics",
+        "sheet"
+      ],
+      "ok": "object"
+    },
+    "op.add_stylesheet.unknown_member": {
+      "error": -32602
+    },
+    "op.append_text.missing_required": {
+      "error": -32602
+    },
+    "op.append_text.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.append_text.unknown_member": {
+      "error": -32602
+    },
+    "op.batch.missing_required": {
+      "error": -32602
+    },
+    "op.batch.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.batch.unknown_member": {
+      "error": -32602
+    },
+    "op.blur.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.blur.unknown_member": {
+      "error": -32602
+    },
+    "op.blur.with_element": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.check_validity.missing_required": {
+      "error": -32602
+    },
+    "op.check_validity.required_only": {
+      "members": [
+        "count",
+        "invalid",
+        "valid"
+      ],
+      "ok": "object"
+    },
+    "op.check_validity.unknown_member": {
+      "error": -32602
+    },
+    "op.clear_selection.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.clear_selection.unknown_member": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.close_dialog.missing_required": {
+      "error": -32602
+    },
+    "op.close_dialog.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.close_dialog.unknown_member": {
+      "error": -32602
+    },
+    "op.copy_selection.required_only": {
+      "members": [
+        "text"
+      ],
+      "ok": "object"
+    },
+    "op.copy_selection.unknown_member": {
+      "members": [
+        "text"
+      ],
+      "ok": "object"
+    },
+    "op.css_profile.required_only": {
+      "members": [
+        "features",
+        "version"
+      ],
+      "ok": "object"
+    },
+    "op.css_profile.unknown_member": {
+      "members": [
+        "features",
+        "version"
+      ],
+      "ok": "object"
+    },
+    "op.edit_command.missing_required": {
+      "error": -32602
+    },
+    "op.edit_command.required_only": {
+      "error": -32602
+    },
+    "op.edit_command.unknown_member": {
+      "error": -32602
+    },
+    "op.edit_command.with_element": {
+      "members": [
+        "accepted",
+        "clipboard_pending"
+      ],
+      "ok": "object"
+    },
+    "op.element_at_point.missing_required": {
+      "error": -32602
+    },
+    "op.element_at_point.required_only": {
+      "members": [
+        "element",
+        "node"
+      ],
+      "ok": "object"
+    },
+    "op.element_at_point.unknown_member": {
+      "error": -32602
+    },
+    "op.explain.required_only": {
+      "error": -32602
+    },
+    "op.explain.unknown_member": {
+      "error": -32602
+    },
+    "op.explain.with_element": {
+      "members": [
+        "element",
+        "properties",
+        "reason",
+        "schema",
+        "status"
+      ],
+      "ok": "object"
+    },
+    "op.focus.required_only": {
+      "error": -32602
+    },
+    "op.focus.unknown_member": {
+      "error": -32602
+    },
+    "op.focus.with_element": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.get_accessibility_tree.required_only": {
+      "members": [
+        "tree"
+      ],
+      "ok": "object"
+    },
+    "op.get_accessibility_tree.unknown_member": {
+      "members": [
+        "tree"
+      ],
+      "ok": "object"
+    },
+    "op.get_attribute.missing_required": {
+      "error": -32602
+    },
+    "op.get_attribute.required_only": {
+      "members": [
+        "value"
+      ],
+      "ok": "object"
+    },
+    "op.get_attribute.unknown_member": {
+      "error": -32602
+    },
+    "op.get_attributes.missing_required": {
+      "error": -32602
+    },
+    "op.get_attributes.required_only": {
+      "members": [
+        "attributes"
+      ],
+      "ok": "object"
+    },
+    "op.get_attributes.unknown_member": {
+      "error": -32602
+    },
+    "op.get_checked.missing_required": {
+      "error": -32602
+    },
+    "op.get_checked.required_only": {
+      "members": [
+        "checked"
+      ],
+      "ok": "object"
+    },
+    "op.get_checked.unknown_member": {
+      "error": -32602
+    },
+    "op.get_computed_style.missing_required": {
+      "error": -32602
+    },
+    "op.get_computed_style.required_only": {
+      "error": -32602
+    },
+    "op.get_computed_style.unknown_member": {
+      "error": -32602
+    },
+    "op.get_computed_style.with_element": {
+      "members": [
+        "properties",
+        "schema"
+      ],
+      "ok": "object"
+    },
+    "op.get_control_selection.required_only": {
+      "error": -32602
+    },
+    "op.get_control_selection.unknown_member": {
+      "error": -32602
+    },
+    "op.get_control_selection.with_element": {
+      "members": [
+        "direction",
+        "end",
+        "length",
+        "node",
+        "start"
+      ],
+      "ok": "object"
+    },
+    "op.get_diagnostics.required_only": {
+      "members": [
+        "css_profile_version",
+        "diagnostics"
+      ],
+      "ok": "object"
+    },
+    "op.get_diagnostics.unknown_member": {
+      "members": [
+        "css_profile_version",
+        "diagnostics"
+      ],
+      "ok": "object"
+    },
+    "op.get_dialog.missing_required": {
+      "error": -32602
+    },
+    "op.get_dialog.required_only": {
+      "members": [
+        "modal",
+        "open",
+        "return_value"
+      ],
+      "ok": "object"
+    },
+    "op.get_dialog.unknown_member": {
+      "error": -32602
+    },
+    "op.get_environment.required_only": {
+      "members": [
+        "color_scheme",
+        "color_scheme_source",
+        "high_contrast",
+        "high_contrast_source",
+        "reduced_motion",
+        "reduced_motion_source",
+        "scale",
+        "system_color_scheme",
+        "system_reduced_motion"
+      ],
+      "ok": "object"
+    },
+    "op.get_environment.unknown_member": {
+      "members": [
+        "color_scheme",
+        "color_scheme_source",
+        "high_contrast",
+        "high_contrast_source",
+        "reduced_motion",
+        "reduced_motion_source",
+        "scale",
+        "system_color_scheme",
+        "system_reduced_motion"
+      ],
+      "ok": "object"
+    },
+    "op.get_files.missing_required": {
+      "error": -32602
+    },
+    "op.get_files.required_only": {
+      "members": [
+        "files"
+      ],
+      "ok": "object"
+    },
+    "op.get_files.unknown_member": {
+      "error": -32602
+    },
+    "op.get_focused_element.required_only": {
+      "members": [
+        "element",
+        "node"
+      ],
+      "ok": "object"
+    },
+    "op.get_focused_element.unknown_member": {
+      "members": [
+        "element",
+        "node"
+      ],
+      "ok": "object"
+    },
+    "op.get_form_data.required_only": {
+      "error": -32602
+    },
+    "op.get_form_data.unknown_member": {
+      "error": -32602
+    },
+    "op.get_form_data.with_element": {
+      "members": [
+        "entries",
+        "submitter"
+      ],
+      "ok": "object"
+    },
+    "op.get_html.required_only": {
+      "members": [
+        "html",
+        "next_offset",
+        "offset",
+        "total_bytes",
+        "truncated"
+      ],
+      "ok": "object"
+    },
+    "op.get_html.unknown_member": {
+      "error": -32602
+    },
+    "op.get_html.with_element": {
+      "members": [
+        "html",
+        "next_offset",
+        "offset",
+        "total_bytes",
+        "truncated"
+      ],
+      "ok": "object"
+    },
+    "op.get_node.missing_required": {
+      "error": -32602
+    },
+    "op.get_node.required_only": {
+      "members": [
+        "attributes",
+        "child_count",
+        "id",
+        "name",
+        "next",
+        "node",
+        "parent",
+        "previous",
+        "type"
+      ],
+      "ok": "object"
+    },
+    "op.get_node.unknown_member": {
+      "error": -32602
+    },
+    "op.get_options.missing_required": {
+      "error": -32602
+    },
+    "op.get_options.required_only": {
+      "members": [
+        "options"
+      ],
+      "ok": "object"
+    },
+    "op.get_options.unknown_member": {
+      "error": -32602
+    },
+    "op.get_pointer_capture.required_only": {
+      "members": [
+        "element"
+      ],
+      "ok": "object"
+    },
+    "op.get_pointer_capture.unknown_member": {
+      "members": [
+        "element"
+      ],
+      "ok": "object"
+    },
+    "op.get_popover.missing_required": {
+      "error": -32602
+    },
+    "op.get_popover.required_only": {
+      "members": [
+        "kind",
+        "open"
+      ],
+      "ok": "object"
+    },
+    "op.get_popover.unknown_member": {
+      "error": -32602
+    },
+    "op.get_rect.missing_required": {
+      "error": -32602
+    },
+    "op.get_rect.required_only": {
+      "members": [
+        "rect"
+      ],
+      "ok": "object"
+    },
+    "op.get_rect.unknown_member": {
+      "error": -32602
+    },
+    "op.get_resource_stats.required_only": {
+      "members": [
+        "bundles",
+        "cache",
+        "svg_rasters"
+      ],
+      "ok": "object"
+    },
+    "op.get_resource_stats.unknown_member": {
+      "members": [
+        "bundles",
+        "cache",
+        "svg_rasters"
+      ],
+      "ok": "object"
+    },
+    "op.get_scroll.required_only": {
+      "members": [
+        "animating",
+        "height",
+        "max_x",
+        "max_y",
+        "min_x",
+        "min_y",
+        "scrollable",
+        "width",
+        "x",
+        "y"
+      ],
+      "ok": "object"
+    },
+    "op.get_scroll.unknown_member": {
+      "error": -32602
+    },
+    "op.get_scroll.with_element": {
+      "members": [
+        "animating",
+        "height",
+        "max_x",
+        "max_y",
+        "min_x",
+        "min_y",
+        "scrollable",
+        "width",
+        "x",
+        "y"
+      ],
+      "ok": "object"
+    },
+    "op.get_selection.required_only": {
+      "members": [
+        "text"
+      ],
+      "ok": "object"
+    },
+    "op.get_selection.unknown_member": {
+      "members": [
+        "text"
+      ],
+      "ok": "object"
+    },
+    "op.get_text.missing_required": {
+      "error": -32602
+    },
+    "op.get_text.required_only": {
+      "members": [
+        "text"
+      ],
+      "ok": "object"
+    },
+    "op.get_text.unknown_member": {
+      "error": -32602
+    },
+    "op.get_validity.missing_required": {
+      "error": -32602
+    },
+    "op.get_validity.required_only": {
+      "members": [
+        "flags",
+        "message",
+        "valid",
+        "will_validate"
+      ],
+      "ok": "object"
+    },
+    "op.get_validity.unknown_member": {
+      "error": -32602
+    },
+    "op.get_value.missing_required": {
+      "error": -32602
+    },
+    "op.get_value.required_only": {
+      "members": [
+        "value"
+      ],
+      "ok": "object"
+    },
+    "op.get_value.unknown_member": {
+      "error": -32602
+    },
+    "op.has_element.missing_required": {
+      "error": -32602
+    },
+    "op.has_element.required_only": {
+      "members": [
+        "exists"
+      ],
+      "ok": "object"
+    },
+    "op.has_element.unknown_member": {
+      "error": -32602
+    },
+    "op.hide_popover.missing_required": {
+      "error": -32602
+    },
+    "op.hide_popover.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.hide_popover.unknown_member": {
+      "error": -32602
+    },
+    "op.insert_html.missing_required": {
+      "error": -32602
+    },
+    "op.insert_html.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.insert_html.unknown_member": {
+      "error": -32602
+    },
+    "op.list_stylesheets.required_only": {
+      "members": [
+        "sheets"
+      ],
+      "ok": "object"
+    },
+    "op.list_stylesheets.unknown_member": {
+      "members": [
+        "sheets"
+      ],
+      "ok": "object"
+    },
+    "op.move_element.missing_required": {
+      "error": -32602
+    },
+    "op.move_element.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.move_element.unknown_member": {
+      "error": -32602
+    },
+    "op.node_batch.missing_required": {
+      "error": -32602
+    },
+    "op.node_batch.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.node_batch.unknown_member": {
+      "error": -32602
+    },
+    "op.node_children.missing_required": {
+      "error": -32602
+    },
+    "op.node_children.required_only": {
+      "members": [
+        "children",
+        "total"
+      ],
+      "ok": "object"
+    },
+    "op.node_children.unknown_member": {
+      "error": -32602
+    },
+    "op.node_of.required_only": {
+      "members": [
+        "node"
+      ],
+      "ok": "object"
+    },
+    "op.node_of.unknown_member": {
+      "error": -32602
+    },
+    "op.node_of.with_element": {
+      "members": [
+        "node"
+      ],
+      "ok": "object"
+    },
+    "op.purge_unused_resources.required_only": {
+      "members": [
+        "purged",
+        "stats"
+      ],
+      "ok": "object"
+    },
+    "op.purge_unused_resources.unknown_member": {
+      "error": -32602
+    },
+    "op.query.missing_required": {
+      "error": -32602
+    },
+    "op.query.required_only": {
+      "members": [
+        "ids",
+        "limit",
+        "matched_nodes",
+        "offset",
+        "total",
+        "truncated"
+      ],
+      "ok": "object"
+    },
+    "op.query.unknown_member": {
+      "error": -32602
+    },
+    "op.query_nodes.missing_required": {
+      "error": -32602
+    },
+    "op.query_nodes.required_only": {
+      "members": [
+        "nodes",
+        "offset",
+        "total"
+      ],
+      "ok": "object"
+    },
+    "op.query_nodes.unknown_member": {
+      "error": -32602
+    },
+    "op.register_resource_bundle.missing_required": {
+      "error": -32602
+    },
+    "op.register_resource_bundle.required_only": {
+      "members": [
+        "name",
+        "replaced"
+      ],
+      "ok": "object"
+    },
+    "op.register_resource_bundle.unknown_member": {
+      "error": -32602
+    },
+    "op.remove_attribute.missing_required": {
+      "error": -32602
+    },
+    "op.remove_attribute.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.remove_attribute.unknown_member": {
+      "error": -32602
+    },
+    "op.remove_class.missing_required": {
+      "error": -32602
+    },
+    "op.remove_class.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.remove_class.unknown_member": {
+      "error": -32602
+    },
+    "op.remove_element.missing_required": {
+      "error": -32602
+    },
+    "op.remove_element.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.remove_element.unknown_member": {
+      "error": -32602
+    },
+    "op.remove_stylesheet.missing_required": {
+      "error": -32602
+    },
+    "op.remove_stylesheet.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.remove_stylesheet.unknown_member": {
+      "error": -32602
+    },
+    "op.replace_children_html.missing_required": {
+      "error": -32602
+    },
+    "op.replace_children_html.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.replace_children_html.unknown_member": {
+      "error": -32602
+    },
+    "op.replace_control_range.missing_required": {
+      "error": -32602
+    },
+    "op.replace_control_range.required_only": {
+      "error": -32602
+    },
+    "op.replace_control_range.unknown_member": {
+      "error": -32602
+    },
+    "op.replace_control_range.with_element": {
+      "members": [
+        "changed",
+        "direction",
+        "end",
+        "length",
+        "node",
+        "start"
+      ],
+      "ok": "object"
+    },
+    "op.replace_stylesheet.missing_required": {
+      "error": -32602
+    },
+    "op.replace_stylesheet.required_only": {
+      "members": [
+        "diagnostics",
+        "sheet"
+      ],
+      "ok": "object"
+    },
+    "op.replace_stylesheet.unknown_member": {
+      "error": -32602
+    },
+    "op.request_submit.required_only": {
+      "error": -32602
+    },
+    "op.request_submit.unknown_member": {
+      "error": -32602
+    },
+    "op.request_submit.with_element": {
+      "members": [
+        "default_prevented",
+        "submitted"
+      ],
+      "ok": "object"
+    },
+    "op.reset_form.required_only": {
+      "error": -32602
+    },
+    "op.reset_form.unknown_member": {
+      "error": -32602
+    },
+    "op.reset_form.with_element": {
+      "members": [
+        "default_prevented",
+        "reset"
+      ],
+      "ok": "object"
+    },
+    "op.scroll_by.required_only": {
+      "members": [
+        "animating",
+        "height",
+        "max_x",
+        "max_y",
+        "min_x",
+        "min_y",
+        "scrollable",
+        "width",
+        "x",
+        "y"
+      ],
+      "ok": "object"
+    },
+    "op.scroll_by.unknown_member": {
+      "error": -32602
+    },
+    "op.scroll_by.with_element": {
+      "members": [
+        "animating",
+        "height",
+        "max_x",
+        "max_y",
+        "min_x",
+        "min_y",
+        "scrollable",
+        "width",
+        "x",
+        "y"
+      ],
+      "ok": "object"
+    },
+    "op.scroll_into_view.missing_required": {
+      "error": -32602
+    },
+    "op.scroll_into_view.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.scroll_into_view.unknown_member": {
+      "error": -32602
+    },
+    "op.scroll_to.required_only": {
+      "members": [
+        "animating",
+        "height",
+        "max_x",
+        "max_y",
+        "min_x",
+        "min_y",
+        "scrollable",
+        "width",
+        "x",
+        "y"
+      ],
+      "ok": "object"
+    },
+    "op.scroll_to.unknown_member": {
+      "error": -32602
+    },
+    "op.scroll_to.with_element": {
+      "members": [
+        "animating",
+        "height",
+        "max_x",
+        "max_y",
+        "min_x",
+        "min_y",
+        "scrollable",
+        "width",
+        "x",
+        "y"
+      ],
+      "ok": "object"
+    },
+    "op.select_text.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.select_text.unknown_member": {
+      "error": -32602
+    },
+    "op.select_text.with_element": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_attribute.missing_required": {
+      "error": -32602
+    },
+    "op.set_attribute.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_attribute.unknown_member": {
+      "error": -32602
+    },
+    "op.set_checked.missing_required": {
+      "error": -32602
+    },
+    "op.set_checked.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_checked.unknown_member": {
+      "error": -32602
+    },
+    "op.set_control_selection.missing_required": {
+      "error": -32602
+    },
+    "op.set_control_selection.required_only": {
+      "error": -32602
+    },
+    "op.set_control_selection.unknown_member": {
+      "error": -32602
+    },
+    "op.set_control_selection.with_element": {
+      "members": [
+        "direction",
+        "end",
+        "length",
+        "node",
+        "start"
+      ],
+      "ok": "object"
+    },
+    "op.set_custom_validity.missing_required": {
+      "error": -32602
+    },
+    "op.set_custom_validity.required_only": {
+      "error": -32602
+    },
+    "op.set_custom_validity.unknown_member": {
+      "error": -32602
+    },
+    "op.set_custom_validity.with_element": {
+      "members": [
+        "flags",
+        "message",
+        "valid"
+      ],
+      "ok": "object"
+    },
+    "op.set_default_action.missing_required": {
+      "error": -32602
+    },
+    "op.set_default_action.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_default_action.unknown_member": {
+      "error": -32602
+    },
+    "op.set_environment.required_only": {
+      "members": [
+        "color_scheme",
+        "color_scheme_source",
+        "high_contrast",
+        "high_contrast_source",
+        "reduced_motion",
+        "reduced_motion_source",
+        "scale",
+        "system_color_scheme",
+        "system_reduced_motion"
+      ],
+      "ok": "object"
+    },
+    "op.set_environment.unknown_member": {
+      "error": -32602
+    },
+    "op.set_pointer_capture.missing_required": {
+      "error": -32602
+    },
+    "op.set_pointer_capture.required_only": {
+      "members": [
+        "accepted"
+      ],
+      "ok": "object"
+    },
+    "op.set_pointer_capture.unknown_member": {
+      "error": -32602
+    },
+    "op.set_scroll_follow.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_scroll_follow.unknown_member": {
+      "error": -32602
+    },
+    "op.set_scroll_follow.with_element": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_selected_values.missing_required": {
+      "error": -32602
+    },
+    "op.set_selected_values.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_selected_values.unknown_member": {
+      "error": -32602
+    },
+    "op.set_text.missing_required": {
+      "error": -32602
+    },
+    "op.set_text.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_text.unknown_member": {
+      "error": -32602
+    },
+    "op.set_value.missing_required": {
+      "error": -32602
+    },
+    "op.set_value.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.set_value.unknown_member": {
+      "error": -32602
+    },
+    "op.show_dialog.missing_required": {
+      "error": -32602
+    },
+    "op.show_dialog.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.show_dialog.unknown_member": {
+      "error": -32602
+    },
+    "op.show_popover.missing_required": {
+      "error": -32602
+    },
+    "op.show_popover.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.show_popover.unknown_member": {
+      "error": -32602
+    },
+    "op.text_at_point.missing_required": {
+      "error": -32602
+    },
+    "op.text_at_point.required_only": {
+      "members": [
+        "hit"
+      ],
+      "ok": "object"
+    },
+    "op.text_at_point.unknown_member": {
+      "error": -32602
+    },
+    "op.text_rects.required_only": {
+      "members": [
+        "length",
+        "rects",
+        "text"
+      ],
+      "ok": "object"
+    },
+    "op.text_rects.unknown_member": {
+      "error": -32602
+    },
+    "op.text_rects.with_element": {
+      "members": [
+        "length",
+        "rects",
+        "text"
+      ],
+      "ok": "object"
+    },
+    "op.toggle_popover.missing_required": {
+      "error": -32602
+    },
+    "op.toggle_popover.required_only": {
+      "members": [
+        "open"
+      ],
+      "ok": "object"
+    },
+    "op.toggle_popover.unknown_member": {
+      "error": -32602
+    },
+    "op.trim_children.missing_required": {
+      "error": -32602
+    },
+    "op.trim_children.required_only": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "op.trim_children.unknown_member": {
+      "error": -32602
+    },
+    "op.unregister_resource_bundle.missing_required": {
+      "error": -32602
+    },
+    "op.unregister_resource_bundle.required_only": {
+      "members": [
+        "name",
+        "removed"
+      ],
+      "ok": "object"
+    },
+    "op.unregister_resource_bundle.unknown_member": {
+      "error": -32602
+    },
+    "probe.get_text.ok": {
+      "members": [
+        "anchor",
+        "cursor",
+        "focused",
+        "preedit",
+        "text"
+      ],
+      "ok": "object"
+    },
+    "probe.set_text.ok": {
+      "members": [
+        "updated"
+      ],
+      "ok": "object"
+    },
+    "request.cancel.missing_member": {
+      "error": -32602
+    },
+    "request.cancel.unknown_id": {
+      "members": [
+        "cancelled"
+      ],
+      "ok": "object"
+    },
+    "security.second_connection.hello_with_valid_token": {
+      "error": -32005
+    },
+    "security.second_connection.malformed_json_frame": {
+      "connection_closed": true
+    },
+    "security.second_connection.window.list": {
+      "error": -32011
+    },
+    "security.session_survives_intruder": {
+      "phase": "initializing"
+    },
+    "window.create.defaults": {
+      "members": [
+        "closing",
+        "height",
+        "native",
+        "observed",
+        "physical_size",
+        "requested",
+        "scale_factor",
+        "title",
+        "visible",
+        "width",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "window.create.ok": {
+      "members": [
+        "closing",
+        "height",
+        "native",
+        "observed",
+        "physical_size",
+        "requested",
+        "scale_factor",
+        "title",
+        "visible",
+        "width",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "window.create.unknown_member": {
+      "error": -32602
+    },
+    "window.create.wrong_type": {
+      "error": -32602
+    },
+    "window.get.duplicate_member_last_wins": {
+      "members": [
+        "closing",
+        "height",
+        "native",
+        "observed",
+        "physical_size",
+        "requested",
+        "scale_factor",
+        "title",
+        "visible",
+        "width",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "window.get.duplicate_member_raw": {
+      "members": [
+        "closing",
+        "height",
+        "native",
+        "observed",
+        "physical_size",
+        "requested",
+        "scale_factor",
+        "title",
+        "visible",
+        "width",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "window.get.missing_member": {
+      "error": -32602
+    },
+    "window.get.ok": {
+      "members": [
+        "closing",
+        "height",
+        "native",
+        "observed",
+        "physical_size",
+        "requested",
+        "scale_factor",
+        "title",
+        "visible",
+        "width",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "window.get.unknown_member": {
+      "error": -32602
+    },
+    "window.get.unknown_window": {
+      "error": -32004
+    },
+    "window.list.ok": {
+      "ok": "array"
+    },
+    "window.request_attention.ok": {
+      "error": -32001
+    },
+    "window.request_close.ok": {
+      "members": [
+        "requested"
+      ],
+      "ok": "object"
+    },
+    "window.set.ok": {
+      "members": [
+        "closing",
+        "height",
+        "native",
+        "observed",
+        "physical_size",
+        "requested",
+        "scale_factor",
+        "title",
+        "visible",
+        "width",
+        "window_id"
+      ],
+      "ok": "object"
+    },
+    "window.set.unknown_member": {
+      "error": -32602
+    }
+  },
+  "host_version": "1.0.1",
+  "mode": "headless; native GUI behavior is qualified separately",
+  "protocol_version": 1,
+  "schema": 1
+}

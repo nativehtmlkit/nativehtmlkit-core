@@ -1,5 +1,8 @@
-# Core release artifacts (placeholder)
+# Core release artifacts
 
-When Core is migrated and verified, publish **precompiled qualified Linux/Windows native hosts** plus checksums, versioned protocol/IDL bundle, licenses, source SHA/provenance and cross-platform test evidence from **manually dispatched** workflows. Do not build or redistribute the host via a Python wheel as the canonical source artifact.
-
-Full proposed artifact specification: `../docs/Contract-Review/04-roadmap/RELEASE-ARTIFACT-CONTRACT.md`. Not yet implemented.
+Produced locally by `scripts/release-local.py --stage-only` into `dist/` (gitignored):
+`nativehtmlkit-core-vVERSION-{linux,windows}-x64.zip` + `.zip.sha256`, containing the host
+executable, `protocol/` (v1 contract, schemas, golden), licences (including the embedded Noto Sans
+OFL), `SOURCE_PROVENANCE.json`, `release-manifest.json` (host SHA-256, `--version`, source commit,
+dirty flag, toolchain) and `SHA256SUMS`. The stager verifies every file and the host `--version`
+from a clean extraction. Upload to GitHub Releases only on explicit request; no GitHub Actions.

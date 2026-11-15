@@ -1,5 +1,3 @@
-# Claude Code — NativeHTMLKit Core
+# Core Claude instructions
 
-Read [`AGENTS.md`](AGENTS.md) first. If this repository is in the standard workspace, also read `../../AGENTS.md`, `../../agents/shared.md` and `../../MIGRATION-HANDOFF.md` from the Project root.
-
-The `docs/Contract-Review/` snapshot is historical analysis; reconcile it with current original code. Do not implement CLI here, publish automatically, or claim public protocol stability without conformance evidence.
+Read `AGENTS.md` first. This is the Rust Core implementation repository, not the Python/PowerShell SDK. Next read `protocol/README.md` and `protocol/CONFORMANCE-ROADMAP.md`. See project root `../../AGENTS.md` and `../../MIGRATION-HANDOFF.md` when present. Do not infer them if the repo is cloned standalone. During work run local tests; never trigger GitHub Actions or publish without explicit user request.

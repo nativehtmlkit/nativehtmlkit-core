@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "bitmap.present params (Rust Present)",
+  "type": "object",
+  "properties": {
+    "window_id": {
+      "type": "string"
+    },
+    "document_id": {
+      "type": "string"
+    },
+    "bitmap_id": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "slot": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    }
+  },
+  "required": [
+    "window_id",
+    "document_id",
+    "bitmap_id",
+    "sequence",
+    "slot"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,75 @@
+{
+  "description": "External font fixtures restored from user-owned original source ZIP; not included in this code package.",
+  "assets": [
+    {
+      "path": "crates/nativehtmlkit-renderer/test-data/fonts/bitmap/UI4MEBitmapTest.ttf",
+      "sha256": "79f54a53b40bc3d26d9d185202e1ffd7fa67f4b3a8f5fa7d9a974ce3e1375bf7",
+      "size": 1136
+    },
+    {
+      "path": "crates/nativehtmlkit-renderer/test-data/fonts/noto-sans/NotoSans-Regular.ttf",
+      "sha256": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
+      "size": 512672
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/fixtures/fonts/noto-sans/NotoSans-Regular.ttf",
+      "sha256": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
+      "size": 512672
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/roboto-flex-subset.ttf",
+      "sha256": "a35566d0b06d64ca99e930c912e694b89c480232b081f2afb4a99d6922e89215",
+      "size": 497968
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/bomb-stream.woff2",
+      "sha256": "9badb586be79e6a07684446fe3b76d2218f2a0ebf96fea1647a0eb74cf566b33",
+      "size": 103
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/bomb-declared.woff2",
+      "sha256": "7f8980672095c73e70879402e58a69a57bff17bec68bc7b525cdf14094c18ad6",
+      "size": 66
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/noto-sans-hmtx.woff2",
+      "sha256": "25a90b67529091333eeffe11c3efd520879a17306a1bdd8b65eb5c52c45e4b26",
+      "size": 19876
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/bomb-ratio.woff2",
+      "sha256": "dc51ab7ebbc8a3ce1962b53d8168bfce0c19d8b98143346807f25fc1e635df6b",
+      "size": 130
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/noto-sans-subset.ttf",
+      "sha256": "2fa2205446504ecfce079c6df0610638f2321a143ee2ebb9ab3b26837bd4474c",
+      "size": 46088
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/noto-sans-subset.woff2",
+      "sha256": "faf6b990adf975dea6da173fa0704e2d70dac843072d5157b503d15ecd9416db",
+      "size": 20028
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/roboto-flex-subset.woff2",
+      "sha256": "1cbefc33a7df9336126d08231dcfdcc5d9afa0f67384c7d67ddd7016926c5e5a",
+      "size": 247732
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/tests/data/woff2/noto-sans-nulltransform.woff2",
+      "sha256": "594d3def1126f6c9b40a2c47f7b3f180a043a4fbbb9defc2c23e3bc58a520f66",
+      "size": 22616
+    },
+    {
+      "path": "crates/nativehtmlkit-assets/assets/last-resort/NotoSans-Regular.ttf",
+      "sha256": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
+      "size": 512672
+    },
+    {
+      "path": "crates/nativehtmlkit-host/assets/NotoSans-Regular.ttf",
+      "sha256": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
+      "size": 512672
+    }
+  ]
+}

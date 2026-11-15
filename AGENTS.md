@@ -1,16 +1,14 @@
-# NativeHTMLKit Core — agent instructions
+# NativeHTMLKit Core — Agent policy
 
-This is an **independent Rust repository**. It is currently only a placeholder with a preserved research/audit snapshot; the original UI4ME engine has **not** been migrated into it.
+1. This repo owns *only* the Rust host, renderer, document, assets, protocol specification and its tests. Do not move Python/PowerShell SDK runtimes into Core.
+2. Preserve original functionality and regressions. Original user source is identified in `SOURCE_PROVENANCE.json`.
+3. Protocol v1 is a locked release candidate (`protocol/README.md`); it becomes public-stable only when the open gates in `protocol/CONFORMANCE-ROADMAP.md` pass. Preserve v1 wire identifiers `UI4ME_*` for credential transport, old resource schemes and attributes; NativeHTMLKit aliases are additive.
+4. Test affected Rust crates first, then cargo fmt/clippy/test workspace and real desktop/CLI integration. Do not mark tests PASS without execution evidence.
+5. Build, test, and stage locally. No GitHub Actions (even manual ones), PyPI or PSGallery. GitHub Releases only after explicit approval.
+6. Restore the original font fixtures using scripts/restore-source-assets.py from the original ZIP. Do not generate/rebrand fonts.
+7. Use qualified immutable Core binary release artifacts for dependent repos. Local development override is allowed with explicit executable path.
+8. When a protocol-visible type or behavior changes: run `python3 scripts/generate-protocol-contract.py`, re-bless the golden with `NATIVEHTMLKIT_CONFORMANCE_BLESS=1 cargo test -p nativehtmlkit-host --test protocol_conformance`, and confirm the diff is additive per `protocol/COMPATIBILITY.md`. Never rename wire-visible `ui4me` identifiers or vendored-Stylo names in a product rename.
+9. Report blocked qualification steps and failures; do not fabricate screenshots, test logs, or success claims.
+10. Keep per-repo commits/pushes independent; no submodules or private source-path dependencies.
 
-If running inside the normal workspace, first read `../../AGENTS.md`, `../../agents/shared.md`, `../../docs/architecture/boundaries.md`, and `../../MIGRATION-HANDOFF.md`. If cloned alone, apply the non-negotiables below and consult the referenced public sources as available; don't assume a parent project checkout exists.
-
-1. Audit the **current original UI4ME Core code and tests** at the exact given source revision; the research snapshot is not necessarily current. Preserve the existing repository/releases/tags, source provenance, licenses, patches and qualification evidence.
-2. Core owns **Rust host/renderer, canonical public protocol/IDL, conformance tests and release artifacts**. Do not implement the Python, PowerShell or CLI client here. The CLI lives from day one in `nativehtmlkit-cli`, not as a Core subcrate.
-3. Port and run the original Rust functionality before broad renames. Preserve legacy v1 wire compatibility until specifically versioned changes and tests justify transitions. Do not treat draft schemas as stable.
-4. Produce qualified Linux/Windows host binaries and contract artifacts **without packaging through a Python wheel**; consumers must pin artifacts and SHA-256 hashes.
-5. All GitHub Actions must have `workflow_dispatch` **only**; remove `push`, `pull_request` and other legacy automatic triggers during migration. Publishing, remote mutation, tags, force pushes and destructive changes require explicit authorization.
-6. Run Rust/protocol/headless and real Linux KDE Wayland + interactive Windows acceptance tests. Keep source SHA, commands, actual results, platform/environment and logs; never claim verification you didn't run.
-7. No browser/JS/HTTP/Node or mandatory Python/PowerShell runtime in Core. No secrets in code/fixtures/reports.
-8. Work on Core defects here only when the task scope includes Core. Track consumer-discovered bugs and their workarounds in Project's `docs/bugs/bug_list.md`.
-
-Primary research: `docs/Contract-Review/REPORT.md`, `01-implementation/`, `02-proposed-contract/`, `03-critical-review/` and `04-roadmap/`. These are **audit evidence and proposals**, not frozen runtime API claims.
+Read `protocol/README.md`, `protocol/COMPATIBILITY.md`, `protocol/CONFORMANCE-ROADMAP.md` and the sibling CLI `AGENTS.md` before any cross-repo work. If started standalone, do not assume the sibling checkout exists.

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "bitmap.create params (Rust Create)",
+  "type": "object",
+  "properties": {
+    "window_id": {
+      "type": "string"
+    },
+    "document_id": {
+      "type": "string"
+    },
+    "bitmap_id": {
+      "type": "string"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "slots": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "pixel_format": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "window_id",
+    "document_id",
+    "bitmap_id",
+    "width",
+    "height"
+  ],
+  "additionalProperties": false,
+  "x-rust-defaults": {
+    "slots": "two()",
+    "pixel_format": "rgba()"
+  }
+}

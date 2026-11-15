@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "document.load params (Rust LoadDocument)",
+  "type": "object",
+  "properties": {
+    "window_id": {
+      "type": "string"
+    },
+    "html": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "file system path"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "asset_root": {
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "file system path"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "window_id"
+  ],
+  "additionalProperties": false,
+  "x-rust-defaults": {
+    "html": "Default::default()",
+    "path": "Default::default()",
+    "asset_root": "Default::default()"
+  }
+}

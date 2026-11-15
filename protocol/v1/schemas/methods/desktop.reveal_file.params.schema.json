@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "desktop.reveal_file params (Rust RevealFile)",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "file system path"
+    },
+    "window_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "path"
+  ],
+  "additionalProperties": false
+}

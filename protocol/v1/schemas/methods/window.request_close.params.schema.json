@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "window.request_close params (Rust WindowKey)",
+  "type": "object",
+  "properties": {
+    "window_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "window_id"
+  ],
+  "additionalProperties": false
+}

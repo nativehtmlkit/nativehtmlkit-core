@@ -1,8 +1,13 @@
 /target/
-/.cache/
+/dist/
 /verification/
-*.log
-.env
-.env.*
-!.env.example
-.DS_Store
+/*.log
+/.venv/
+__pycache__/
+*.pyc
+# Local restore of original test fonts: never commit binaries
+*.ttf
+*.otf
+*.ttc
+*.woff
+*.woff2

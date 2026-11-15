@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "clipboard.write_text params (Rust Text)",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "text"
+  ],
+  "additionalProperties": false
+}

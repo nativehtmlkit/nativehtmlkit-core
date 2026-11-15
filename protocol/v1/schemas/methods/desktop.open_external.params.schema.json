@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "desktop.open_external params (Rust Target)",
+  "type": "object",
+  "properties": {
+    "target": {
+      "type": "string"
+    },
+    "window_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "target"
+  ],
+  "additionalProperties": false
+}
