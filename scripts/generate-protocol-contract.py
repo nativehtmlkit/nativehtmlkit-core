@@ -242,7 +242,8 @@ def parse_tagged_enum(text: str, name: str, nested: dict) -> dict[str, dict]:
 
 
 def generate() -> dict[pathlib.Path, str]:
-    src = {k: strip_comments(p.read_text(encoding="utf-8")) for k, p in SOURCES.items()}
+    # Normalise CRLF (Windows checkouts with core.autocrlf) before parsing.
+    src = {k: strip_comments(p.read_text(encoding="utf-8").replace("\r\n", "\n")) for k, p in SOURCES.items()}
     cmd = src["commands"]
     nested_names = ["ResourceEntry"]
     nested: dict[str, dict] = {n: {} for n in nested_names + ["NodeBatchOp", "BatchOp"]}
@@ -301,7 +302,7 @@ def generate() -> dict[pathlib.Path, str]:
     matrix = {
         "schema": 1,
         "protocol_version": 1,
-        "generated_from": {k: str(p.relative_to(ROOT)) for k, p in SOURCES.items()},
+        "generated_from": {k: p.relative_to(ROOT).as_posix() for k, p in SOURCES.items()},
         "generator": "scripts/generate-protocol-contract.py",
         "runtime_golden": "protocol/v1/conformance/golden.json (crates/nativehtmlkit-host/tests/protocol_conformance.rs)",
         "methods": dict(sorted(methods.items())),
@@ -319,11 +320,11 @@ def main() -> int:
     stale = []
     for path, text in files.items():
         if args.check:
-            if not path.is_file() or path.read_text(encoding="utf-8") != text:
-                stale.append(str(path.relative_to(ROOT)))
+            if not path.is_file() or path.read_text(encoding="utf-8").replace("\r\n", "\n") != text:
+                stale.append(path.relative_to(ROOT).as_posix())
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text, encoding="utf-8")
+            path.write_text(text, encoding="utf-8", newline="\n")
     if args.check and stale:
         print("protocol contract is stale; run scripts/generate-protocol-contract.py:\n  " + "\n  ".join(stale))
         return 1
