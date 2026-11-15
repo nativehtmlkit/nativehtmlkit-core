@@ -121,6 +121,9 @@ mod tests {
             ":-ui4me-single-row-select",
             ":-nativehtmlkit-single-row-select",
         );
-        assert!(!audit(&renamed).is_empty(), "renamed pseudo-class must not parse silently");
+        assert!(
+            !audit(&renamed).is_empty(),
+            "renamed pseudo-class must not parse silently"
+        );
     }
 }
