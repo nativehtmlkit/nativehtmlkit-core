@@ -88,9 +88,10 @@ with their OFL notices, hyphenation data at
 `licenses/UA-STYLESHEETS-NOTICE.txt`), and parser test fixtures with their WPT
 notice (tests only, not in the binary).
 
-**Open owner decision (OD-26):** the UA stylesheets are labelled CC-BY-4.0 as
-the project default, *pending owner approval*; they are compiled into every host
-binary. The release notice states this status; it is not an approval. The example's `@font-face` font has its own adjacent FONT-LICENSE.txt.
+**Owner decision OD-26 (approved 2026-11-15):** the project owner approved CC-BY-4.0 for the
+UA stylesheets, which are compiled into every host binary; the release notice records the
+approval. In-source comments in the stylesheet files still carry the earlier "pending" wording
+until the next Core version (changing them would change the qualified 1.0.2 binary). The example's `@font-face` font has its own adjacent FONT-LICENSE.txt.
 
 The root MIT license describes original UI4ME/NativeHTMLKit code; it does not relicense the
 carried Stylo, Taffy, font or other third-party source/data. The source of the

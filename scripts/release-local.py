@@ -64,10 +64,8 @@ https://creativecommons.org/licenses/by/4.0/
 The material was modified; the rules taken and every modification (M1-M21) are listed in
 UA-STYLESHEETS-PROVENANCE.md next to this file. Block 2 of forms.css is NativeHTMLKit-owned.
 
-LICENCE STATUS: CC-BY-4.0 is the project default chosen under open decision OD-26 and is
-PENDING OWNER APPROVAL (see crates/nativehtmlkit-renderer/src/style/ua/PROVENANCE.md). The
-WHATWG snapshot's LICENSE also offers BSD-3-Clause for portions incorporated into source code;
-that alternative basis is not applied here.
+LICENCE STATUS: CC-BY-4.0 for these stylesheets (decision OD-26) was APPROVED BY THE PROJECT
+OWNER on 2026-11-15 (see crates/nativehtmlkit-renderer/src/style/ua/PROVENANCE.md).
 """
 LICENCE_FILE = re.compile(r"^(LICEN[CS]E|COPYING|NOTICE|UNLICENSE)", re.I)
 STYLO_UPSTREAM = "https://github.com/servo/stylo @ 37c1ed3b707c8f333304de2107c13b68fbc1057c"
@@ -247,7 +245,7 @@ def third_party_licences(target: str) -> tuple[str, dict]:
         "Embedded data (see the files next to this one):",
         "  NotoSans-OFL.txt              Noto Sans Regular (SIL OFL 1.1), embedded twice (byte-identical)",
         "  hyphenation-NOTICES.txt       TeX hyphenation patterns (MIT, BSD-3-Clause, notice-preservation)",
-        "  UA-STYLESHEETS-NOTICE.txt     WHATWG-derived UA stylesheets (CC-BY-4.0, pending owner approval)",
+        "  UA-STYLESHEETS-NOTICE.txt     WHATWG-derived UA stylesheets (CC-BY-4.0, owner-approved 2026-11-15)",
         "",
         "MPL-2.0: the full licence text is MPL-2.0.txt next to this file. Source code form of the",
         "MPL-2.0 covered crates in this binary is available at:",
