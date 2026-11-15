@@ -1,0 +1,34 @@
+{
+  "package_title": "NativeHTMLKit Contract Audit, Architecture Review and Candidate IDL",
+  "status": "SOURCE DERIVED AS-IS + UNVERIFIED TO-BE DRAFT",
+  "source_archive_name": "ui4me-core-main(6).zip",
+  "source_archive_sha256": "2ec944224758994253675165671ad2858c7f6bde9c7c4e80af528a833a2e2bd5",
+  "rust_host_version": "1.0.1",
+  "wire_version_from_source": 1,
+  "static_method_count": 32,
+  "static_document_command_count": 81,
+  "batch_variant_count_each": 11,
+  "host_emitted_message_type_count": 9,
+  "python_top_level_exports": 12,
+  "powershell_exported_functions": 83,
+  "candidate_json_schema_files": 7,
+  "validated_fixture_expectations": 12,
+  "manual_workflows_checked": 6,
+  "legacy_automatic_trigger_violation_count": 2,
+  "checks": {
+    "all_internal_md_links_resolve": true,
+    "source_inventory_reproducible": true,
+    "schemas_and_fixtures": "STATIC candidate validation PASS: 7 schema files, 12 fixtures; no live host executed",
+    "manual_trigger_audit": "FAIL /mnt/data/nhk_contract_work/source/ui4me-core-main/.github/workflows/ci.yml: expected only workflow_dispatch, found ['push', 'pull_request', 'workflow_dispatch']\nFAIL /mnt/data/nhk_contract_work/source/ui4me-core-main/.github/workflows/test-powershell.yaml: expected only workflow_dispatch, found ['pull_request', 'push']\nchecked=6 workflows, violations=2"
+  },
+  "not_performed": [
+    "cargo check",
+    "cargo test",
+    "compiled host protocol traffic",
+    "Wayland UI acceptance",
+    "Windows UI acceptance",
+    "cross-language SDK compatibility run",
+    "source modification",
+    "release publication"
+  ]
+}

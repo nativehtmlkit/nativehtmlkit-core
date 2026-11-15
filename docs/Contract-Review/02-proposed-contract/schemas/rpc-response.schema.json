@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nativehtmlkit.dev/contracts/candidate-0.1/rpc-response.schema.json",
+  "title": "NativeHTMLKit response envelope (candidate)",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "x-max-utf8-bytes": 128,
+          "description": "Rust caps request IDs at 128 UTF-8 BYTES, not Unicode codepoints; requires a runtime check in addition to JSON Schema."
+        },
+        "result": {}
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "x-max-utf8-bytes": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "$ref": "rpc-error.schema.json"
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "error"
+      ],
+      "additionalProperties": false
+    }
+  ],
+  "x-note": "The host can emit id:null on invalid request, but protocol::parse_response only accepts string IDs. Contract review must resolve this explicitly."
+}

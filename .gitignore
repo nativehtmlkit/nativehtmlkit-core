@@ -1,0 +1,8 @@
+/target/
+/.cache/
+/verification/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store

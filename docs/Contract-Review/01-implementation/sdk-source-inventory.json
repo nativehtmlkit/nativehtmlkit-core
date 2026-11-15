@@ -1,0 +1,1139 @@
+{
+  "source": "source-derived API inventory, not a test of behavioral parity",
+  "python_root_public_api": [
+    "Application",
+    "Window",
+    "Document",
+    "Node",
+    "StaleDocumentError",
+    "StartupError",
+    "RpcClient",
+    "RpcError",
+    "ProtocolError",
+    "DisconnectedError",
+    "LiveBitmap",
+    "host_binary"
+  ],
+  "python_public_classes_functions": [
+    {
+      "type": "class",
+      "module": "application.py",
+      "name": "StaleDocumentError",
+      "line": 23,
+      "methods": []
+    },
+    {
+      "type": "class",
+      "module": "application.py",
+      "name": "Application",
+      "line": 27,
+      "methods": [
+        {
+          "name": "start",
+          "line": 49
+        },
+        {
+          "name": "from_environment",
+          "line": 85
+        },
+        {
+          "name": "create_window",
+          "line": 98
+        },
+        {
+          "name": "open_file",
+          "line": 116
+        },
+        {
+          "name": "open_html",
+          "line": 125
+        },
+        {
+          "name": "ready",
+          "line": 135
+        },
+        {
+          "name": "run",
+          "line": 140
+        },
+        {
+          "name": "on_window_event",
+          "line": 160
+        },
+        {
+          "name": "on_shutdown",
+          "line": 177
+        },
+        {
+          "name": "request_quit",
+          "line": 183
+        },
+        {
+          "name": "on_before_quit",
+          "line": 186
+        },
+        {
+          "name": "clipboard_text",
+          "line": 195
+        },
+        {
+          "name": "set_clipboard_text",
+          "line": 198
+        },
+        {
+          "name": "capabilities",
+          "line": 201
+        },
+        {
+          "name": "desktop_preferences",
+          "line": 204
+        },
+        {
+          "name": "on_desktop_preferences",
+          "line": 208
+        },
+        {
+          "name": "open_external",
+          "line": 211
+        },
+        {
+          "name": "reveal_file",
+          "line": 220
+        },
+        {
+          "name": "close",
+          "line": 276
+        }
+      ]
+    },
+    {
+      "type": "class",
+      "module": "application.py",
+      "name": "Window",
+      "line": 321,
+      "methods": [
+        {
+          "name": "load_file",
+          "line": 343
+        },
+        {
+          "name": "load_html",
+          "line": 349
+        },
+        {
+          "name": "set",
+          "line": 355
+        },
+        {
+          "name": "state",
+          "line": 359
+        },
+        {
+          "name": "request_attention",
+          "line": 363
+        },
+        {
+          "name": "on_before_close",
+          "line": 367
+        },
+        {
+          "name": "request_close",
+          "line": 374
+        },
+        {
+          "name": "open_files",
+          "line": 387
+        },
+        {
+          "name": "save_file",
+          "line": 393
+        },
+        {
+          "name": "choose_folder",
+          "line": 399
+        }
+      ]
+    },
+    {
+      "type": "class",
+      "module": "application.py",
+      "name": "Document",
+      "line": 405,
+      "methods": [
+        {
+          "name": "create_bitmap",
+          "line": 432
+        },
+        {
+          "name": "command",
+          "line": 441
+        },
+        {
+          "name": "on",
+          "line": 450
+        },
+        {
+          "name": "unload",
+          "line": 484
+        },
+        {
+          "name": "set_text",
+          "line": 494
+        },
+        {
+          "name": "get_text",
+          "line": 497
+        },
+        {
+          "name": "set_value",
+          "line": 500
+        },
+        {
+          "name": "get_value",
+          "line": 503
+        },
+        {
+          "name": "set_checked",
+          "line": 506
+        },
+        {
+          "name": "get_checked",
+          "line": 509
+        },
+        {
+          "name": "set_attribute",
+          "line": 512
+        },
+        {
+          "name": "remove_attribute",
+          "line": 515
+        },
+        {
+          "name": "add_class",
+          "line": 518
+        },
+        {
+          "name": "remove_class",
+          "line": 521
+        },
+        {
+          "name": "replace_html",
+          "line": 524
+        },
+        {
+          "name": "insert_html",
+          "line": 527
+        },
+        {
+          "name": "remove",
+          "line": 530
+        },
+        {
+          "name": "batch",
+          "line": 533
+        },
+        {
+          "name": "query",
+          "line": 537
+        },
+        {
+          "name": "focus",
+          "line": 540
+        },
+        {
+          "name": "prevent_default",
+          "line": 543
+        },
+        {
+          "name": "add_stylesheet",
+          "line": 548
+        },
+        {
+          "name": "scroll_into_view",
+          "line": 551
+        },
+        {
+          "name": "diagnostics",
+          "line": 555
+        },
+        {
+          "name": "node",
+          "line": 571
+        },
+        {
+          "name": "query_nodes",
+          "line": 581
+        },
+        {
+          "name": "node_batch",
+          "line": 585
+        },
+        {
+          "name": "element_at_point",
+          "line": 588
+        },
+        {
+          "name": "focused_element",
+          "line": 591
+        },
+        {
+          "name": "blur",
+          "line": 594
+        },
+        {
+          "name": "control_selection",
+          "line": 597
+        },
+        {
+          "name": "set_control_selection",
+          "line": 601
+        },
+        {
+          "name": "replace_control_range",
+          "line": 606
+        },
+        {
+          "name": "edit",
+          "line": 617
+        },
+        {
+          "name": "reset_form",
+          "line": 626
+        },
+        {
+          "name": "request_submit",
+          "line": 637
+        },
+        {
+          "name": "form_data",
+          "line": 640
+        },
+        {
+          "name": "set_custom_validity",
+          "line": 644
+        },
+        {
+          "name": "validity",
+          "line": 647
+        },
+        {
+          "name": "check_validity",
+          "line": 650
+        },
+        {
+          "name": "files",
+          "line": 653
+        },
+        {
+          "name": "options",
+          "line": 656
+        },
+        {
+          "name": "set_selected_values",
+          "line": 659
+        },
+        {
+          "name": "environment",
+          "line": 662
+        },
+        {
+          "name": "set_environment",
+          "line": 665
+        },
+        {
+          "name": "computed_style",
+          "line": 671
+        },
+        {
+          "name": "replace_stylesheet",
+          "line": 675
+        },
+        {
+          "name": "remove_stylesheet",
+          "line": 678
+        },
+        {
+          "name": "stylesheets",
+          "line": 681
+        },
+        {
+          "name": "scroll",
+          "line": 684
+        },
+        {
+          "name": "scroll_to",
+          "line": 687
+        },
+        {
+          "name": "show_dialog",
+          "line": 692
+        },
+        {
+          "name": "close_dialog",
+          "line": 695
+        },
+        {
+          "name": "show_popover",
+          "line": 698
+        },
+        {
+          "name": "hide_popover",
+          "line": 701
+        },
+        {
+          "name": "toggle_popover",
+          "line": 704
+        },
+        {
+          "name": "register_resources",
+          "line": 707
+        },
+        {
+          "name": "unregister_resources",
+          "line": 731
+        },
+        {
+          "name": "resource_stats",
+          "line": 734
+        },
+        {
+          "name": "purge_unused_resources",
+          "line": 737
+        }
+      ]
+    },
+    {
+      "type": "class",
+      "module": "application.py",
+      "name": "Node",
+      "line": 741,
+      "methods": [
+        {
+          "name": "inspect",
+          "line": 751
+        },
+        {
+          "name": "children",
+          "line": 755
+        },
+        {
+          "name": "set_text",
+          "line": 763
+        },
+        {
+          "name": "set_attribute",
+          "line": 766
+        },
+        {
+          "name": "remove_attribute",
+          "line": 769
+        },
+        {
+          "name": "add_class",
+          "line": 772
+        },
+        {
+          "name": "remove_class",
+          "line": 775
+        },
+        {
+          "name": "insert_html",
+          "line": 778
+        },
+        {
+          "name": "replace_html",
+          "line": 781
+        },
+        {
+          "name": "append_text",
+          "line": 784
+        },
+        {
+          "name": "trim_children",
+          "line": 787
+        },
+        {
+          "name": "move_to",
+          "line": 790
+        },
+        {
+          "name": "remove",
+          "line": 797
+        },
+        {
+          "name": "focus",
+          "line": 800
+        },
+        {
+          "name": "blur",
+          "line": 803
+        }
+      ]
+    },
+    {
+      "type": "class",
+      "module": "client.py",
+      "name": "ProtocolError",
+      "line": 30,
+      "methods": []
+    },
+    {
+      "type": "class",
+      "module": "client.py",
+      "name": "DisconnectedError",
+      "line": 34,
+      "methods": []
+    },
+    {
+      "type": "class",
+      "module": "client.py",
+      "name": "RpcError",
+      "line": 38,
+      "methods": []
+    },
+    {
+      "type": "class",
+      "module": "client.py",
+      "name": "SocketStream",
+      "line": 44,
+      "methods": [
+        {
+          "name": "read",
+          "line": 48
+        },
+        {
+          "name": "write",
+          "line": 51
+        },
+        {
+          "name": "close",
+          "line": 54
+        }
+      ]
+    },
+    {
+      "type": "class",
+      "module": "client.py",
+      "name": "NamedPipeStream",
+      "line": 62,
+      "methods": [
+        {
+          "name": "read",
+          "line": 159
+        },
+        {
+          "name": "write",
+          "line": 171
+        },
+        {
+          "name": "close",
+          "line": 181
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "module": "client.py",
+      "name": "connect_stream",
+      "line": 206
+    },
+    {
+      "type": "function",
+      "module": "client.py",
+      "name": "read_exact",
+      "line": 220
+    },
+    {
+      "type": "function",
+      "module": "client.py",
+      "name": "encode_frame",
+      "line": 241
+    },
+    {
+      "type": "function",
+      "module": "client.py",
+      "name": "read_frame",
+      "line": 249
+    },
+    {
+      "type": "function",
+      "module": "client.py",
+      "name": "write_all",
+      "line": 267
+    },
+    {
+      "type": "function",
+      "module": "client.py",
+      "name": "use_utf8_stdio",
+      "line": 276
+    },
+    {
+      "type": "class",
+      "module": "client.py",
+      "name": "RpcClient",
+      "line": 289,
+      "methods": [
+        {
+          "name": "from_environment",
+          "line": 325
+        },
+        {
+          "name": "on_request",
+          "line": 342
+        },
+        {
+          "name": "on_notification",
+          "line": 345
+        },
+        {
+          "name": "call_async",
+          "line": 361
+        },
+        {
+          "name": "call",
+          "line": 390
+        },
+        {
+          "name": "notify",
+          "line": 402
+        },
+        {
+          "name": "wait_for_notifications",
+          "line": 482
+        },
+        {
+          "name": "closed",
+          "line": 547
+        },
+        {
+          "name": "wait",
+          "line": 550
+        },
+        {
+          "name": "flush",
+          "line": 553
+        },
+        {
+          "name": "close",
+          "line": 563
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "module": "launcher.py",
+      "name": "host_binary",
+      "line": 11
+    },
+    {
+      "type": "function",
+      "module": "launcher.py",
+      "name": "main",
+      "line": 32
+    },
+    {
+      "type": "class",
+      "module": "live_bitmap.py",
+      "name": "LiveBitmap",
+      "line": 25,
+      "methods": [
+        {
+          "name": "present",
+          "line": 77
+        },
+        {
+          "name": "try_present",
+          "line": 103
+        },
+        {
+          "name": "close",
+          "line": 126
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "module": "scaffold.py",
+      "name": "app_slug",
+      "line": 15
+    },
+    {
+      "type": "function",
+      "module": "scaffold.py",
+      "name": "toml_string",
+      "line": 29
+    },
+    {
+      "type": "function",
+      "module": "scaffold.py",
+      "name": "templates",
+      "line": 34
+    },
+    {
+      "type": "function",
+      "module": "scaffold.py",
+      "name": "create_project",
+      "line": 146
+    },
+    {
+      "type": "function",
+      "module": "scaffold.py",
+      "name": "shell_argument",
+      "line": 171
+    },
+    {
+      "type": "function",
+      "module": "scaffold.py",
+      "name": "main",
+      "line": 181
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "skill_source",
+      "line": 40
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "files_hash",
+      "line": 52
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "marker_data",
+      "line": 64
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "skill_status",
+      "line": 79
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "install_skill",
+      "line": 97
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "uninstall_skill",
+      "line": 127
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "agent_names",
+      "line": 140
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "locations",
+      "line": 149
+    },
+    {
+      "type": "function",
+      "module": "skills.py",
+      "name": "main",
+      "line": 174
+    }
+  ],
+  "powershell_exported_functions": [
+    "Connect-UI4ME",
+    "Close-UI4ME",
+    "Wait-UI4ME",
+    "Invoke-UI4MERpc",
+    "Send-UI4MENotification",
+    "Start-UI4MERpc",
+    "Wait-UI4MERpc",
+    "Stop-UI4MERpc",
+    "New-UI4MEWindow",
+    "Set-UI4MEWindow",
+    "Get-UI4MEWindow",
+    "Get-UI4MEWindowList",
+    "Close-UI4MEWindow",
+    "Request-UI4MEAttention",
+    "Set-UI4MEBeforeClose",
+    "Set-UI4MEBeforeQuit",
+    "Set-UI4MEReady",
+    "Request-UI4MEQuit",
+    "Register-UI4MENotification",
+    "Open-UI4MEHtml",
+    "Open-UI4MEFile",
+    "Remove-UI4MEDocument",
+    "Register-UI4MEDocumentEvent",
+    "Unregister-UI4MEDocumentEvent",
+    "Invoke-UI4MEDocumentCommand",
+    "Invoke-UI4MEBatch",
+    "Get-UI4MEDocumentText",
+    "Set-UI4MEDocumentText",
+    "Get-UI4MEValue",
+    "Set-UI4MEDocumentValue",
+    "Get-UI4MEChecked",
+    "Set-UI4MEChecked",
+    "Set-UI4MEDocumentAttribute",
+    "Set-UI4MEClass",
+    "Set-UI4MEDocumentHtml",
+    "Remove-UI4MEElement",
+    "Find-UI4MEElement",
+    "Add-UI4MEStylesheet",
+    "Get-UI4MEStylesheets",
+    "Set-UI4MEStylesheet",
+    "Get-UI4MEComputedStyle",
+    "Get-UI4MEEnvironment",
+    "Set-UI4MEEnvironment",
+    "Get-UI4MEScroll",
+    "Set-UI4MEScroll",
+    "Get-UI4MEFocusedElement",
+    "Set-UI4MEFocus",
+    "Get-UI4MESelection",
+    "Set-UI4MESelection",
+    "Invoke-UI4MEEditCommand",
+    "Get-UI4MEFormData",
+    "Submit-UI4MEForm",
+    "Reset-UI4MEForm",
+    "Get-UI4MESelectOptions",
+    "Set-UI4MESelectedValues",
+    "Show-UI4MEPopover",
+    "Show-UI4MEHtmlDialog",
+    "Set-UI4MEPreventDefault",
+    "Get-UI4MEDiagnostics",
+    "Get-UI4MEResourceStats",
+    "Clear-UI4MEUnusedResources",
+    "Register-UI4MEResources",
+    "Unregister-UI4MEResources",
+    "Get-UI4MENode",
+    "Get-UI4MENodes",
+    "Get-UI4MENodeInfo",
+    "Get-UI4MENodeChildren",
+    "Invoke-UI4MENodeBatch",
+    "Invoke-UI4MENodeOperation",
+    "Get-UI4MECapabilities",
+    "Get-UI4MEPreferences",
+    "Get-UI4MEClipboard",
+    "Set-UI4MEClipboard",
+    "Open-UI4MEExternal",
+    "Show-UI4MEFileDialog",
+    "New-UI4MELiveBitmap",
+    "Send-UI4MELiveBitmap",
+    "Remove-UI4MELiveBitmap",
+    "Get-UI4MEHostPath",
+    "Start-UI4MEHost",
+    "Start-UI4MEScript",
+    "New-UI4MEProject",
+    "Install-UI4MESkill"
+  ],
+  "powershell_function_line": {
+    "Initialize-UI4MEHelper": 25,
+    "Write-UI4MELog": 40,
+    "Format-UI4MEError": 45,
+    "Get-UI4MEField": 55,
+    "New-UI4MEStaleError": 67,
+    "Test-UI4METype": 73,
+    "Assert-UI4MEApplication": 79,
+    "Assert-UI4MEWindow": 87,
+    "Assert-UI4MEDocument": 93,
+    "Assert-UI4MENode": 102,
+    "Get-UI4MEDocumentIds": 107,
+    "Add-UI4METarget": 114,
+    "Set-UI4MEDisconnected": 129,
+    "Invoke-UI4MECallback": 141,
+    "Invoke-UI4MEDocumentHandlers": 155,
+    "Invoke-UI4MENotification": 176,
+    "ConvertTo-UI4MEDecision": 225,
+    "Invoke-UI4MEHostRequest": 231,
+    "Invoke-UI4MEPump": 263,
+    "Connect-UI4ME": 298,
+    "Start-UI4MERpc": 352,
+    "Stop-UI4MERpc": 375,
+    "Wait-UI4MERpc": 392,
+    "Invoke-UI4MERpc": 438,
+    "Send-UI4MENotification": 454,
+    "Wait-UI4ME": 463,
+    "Close-UI4ME": 505,
+    "New-UI4MEWindow": 534,
+    "Set-UI4MEWindow": 556,
+    "Get-UI4MEWindow": 581,
+    "Get-UI4MEWindowList": 589,
+    "Close-UI4MEWindow": 595,
+    "Request-UI4MEAttention": 603,
+    "Set-UI4MEBeforeClose": 612,
+    "Set-UI4MEBeforeQuit": 621,
+    "Set-UI4MEReady": 629,
+    "Request-UI4MEQuit": 639,
+    "Register-UI4MENotification": 645,
+    "New-UI4MEDocumentObject": 662,
+    "Remove-UI4MEDocumentState": 675,
+    "Open-UI4MEHtml": 683,
+    "Open-UI4MEFile": 700,
+    "Resolve-UI4MEPath": 711,
+    "Remove-UI4MEDocument": 717,
+    "Register-UI4MEDocumentEvent": 727,
+    "Unregister-UI4MEDocumentEvent": 747,
+    "Invoke-UI4MEDocumentCommand": 755,
+    "Invoke-UI4MEBatch": 775,
+    "Get-UI4MEDocumentText": 782,
+    "Set-UI4MEDocumentText": 787,
+    "Get-UI4MEValue": 794,
+    "Set-UI4MEDocumentValue": 798,
+    "Get-UI4MEChecked": 804,
+    "Set-UI4MEChecked": 808,
+    "Set-UI4MEDocumentAttribute": 813,
+    "Set-UI4MEClass": 821,
+    "Set-UI4MEDocumentHtml": 829,
+    "Remove-UI4MEElement": 841,
+    "Find-UI4MEElement": 846,
+    "Add-UI4MEStylesheet": 852,
+    "Get-UI4MEStylesheets": 858,
+    "Set-UI4MEStylesheet": 862,
+    "Get-UI4MEComputedStyle": 871,
+    "Get-UI4MEEnvironment": 878,
+    "Set-UI4MEEnvironment": 882,
+    "Get-UI4MEScroll": 890,
+    "Set-UI4MEScroll": 896,
+    "Get-UI4MEFocusedElement": 906,
+    "Set-UI4MEFocus": 910,
+    "Get-UI4MESelection": 918,
+    "Set-UI4MESelection": 925,
+    "Invoke-UI4MEEditCommand": 933,
+    "Get-UI4MEFormData": 947,
+    "Submit-UI4MEForm": 955,
+    "Reset-UI4MEForm": 963,
+    "Get-UI4MESelectOptions": 969,
+    "Set-UI4MESelectedValues": 974,
+    "Show-UI4MEPopover": 979,
+    "Show-UI4MEHtmlDialog": 986,
+    "Set-UI4MEPreventDefault": 993,
+    "Get-UI4MEDiagnostics": 1005,
+    "Get-UI4MEResourceStats": 1009,
+    "Clear-UI4MEUnusedResources": 1013,
+    "ConvertTo-UI4MEBytes": 1020,
+    "Register-UI4MEResources": 1030,
+    "Unregister-UI4MEResources": 1059,
+    "Get-UI4MENode": 1067,
+    "Get-UI4MENodes": 1083,
+    "Get-UI4MENodeInfo": 1090,
+    "Get-UI4MENodeChildren": 1095,
+    "Invoke-UI4MENodeBatch": 1101,
+    "Invoke-UI4MENodeOperation": 1107,
+    "Get-UI4MECapabilities": 1132,
+    "Get-UI4MEPreferences": 1136,
+    "Get-UI4MEClipboard": 1141,
+    "Set-UI4MEClipboard": 1145,
+    "Open-UI4MEExternal": 1150,
+    "Show-UI4MEFileDialog": 1170,
+    "New-UI4MELiveBitmap": 1200,
+    "Send-UI4MELiveBitmap": 1240,
+    "Remove-UI4MELiveBitmap": 1273,
+    "Get-UI4MEHostPath": 1298,
+    "Start-UI4MEHost": 1324,
+    "ConvertTo-UI4METomlString": 1344,
+    "Get-UI4MEDefaultAppId": 1360,
+    "Get-UI4MEScriptArguments": 1375,
+    "Clear-UI4MEStaleStartFolders": 1391,
+    "Start-UI4MEScript": 1403,
+    "New-UI4MEProject": 1540,
+    "Get-UI4MESkillHashes": 1655,
+    "Get-UI4MESkillState": 1668,
+    "Get-UI4MESkillSource": 1685,
+    "Install-UI4MESkill": 1694
+  },
+  "rpc_mentions_by_sdk": [
+    {
+      "method": "app.activate",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 0,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "app.force_quit",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 0,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "app.ready",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "app.request_quit",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "bitmap.close",
+      "python_source_mentions": 2,
+      "powershell_source_mentions": 2,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "bitmap.create",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "bitmap.present",
+      "python_source_mentions": 2,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "clipboard.read_text",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "clipboard.write_text",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "desktop.open_external",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "desktop.paths",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 0,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "desktop.preferences",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "desktop.reveal_file",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "dialog.choose_folder",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "dialog.open_files",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "dialog.save_file",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "document.command",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "document.get",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 0,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "document.load",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 2,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "document.unload",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "host.capabilities",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "host.diagnostics",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 0,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "host.hello",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "probe.get_text",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 0,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "probe.set_text",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 0,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "request.cancel",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "window.create",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "window.get",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "window.list",
+      "python_source_mentions": 0,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "window.request_attention",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "window.request_close",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    },
+    {
+      "method": "window.set",
+      "python_source_mentions": 1,
+      "powershell_source_mentions": 1,
+      "note": "heuristic literal string occurrence only, not proof of high-level wrapper availability"
+    }
+  ]
+}

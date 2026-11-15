@@ -1,0 +1,21 @@
+{
+  "status": "illustrative wire-v1 request/response sequence; not executed against host",
+  "assumptions": [
+    "The host launched this client using a manifest and provided UI4ME_ENDPOINT/UI4ME_TOKEN",
+    "The value TOKEN_FROM_HOST is substituted from that private environment variable",
+    "The backend implements host-initiated window.before_close and app.before_quit responses"
+  ],
+  "sequence": [
+    {"direction":"backend-to-host","message":{"jsonrpc":"2.0","id":"sdk-1","method":"host.hello","params":{"token":"TOKEN_FROM_HOST","protocol_version":1,"client":{"name":"example-client","version":"0.1"}}}},
+    {"direction":"host-to-backend","message":{"jsonrpc":"2.0","id":"sdk-1","result":{"protocol_version":1,"host_version":"1.0.1","app_id":"org.example.Example","capabilities":{"note":"illustrative, not complete"}}}},
+    {"direction":"backend-to-host","message":{"jsonrpc":"2.0","id":"sdk-2","method":"window.create","params":{"title":"NativeHTMLKit Example","width":640,"height":420}}},
+    {"direction":"host-to-backend","message":{"jsonrpc":"2.0","id":"sdk-2","result":{"window_id":"w1","note":"actual host returns a longer window descriptor"}}},
+    {"direction":"backend-to-host","message":{"jsonrpc":"2.0","id":"sdk-3","method":"document.load","params":{"window_id":"w1","html":"<main><p id='message'>Hello</p><button id='confirm'>OK</button></main>"}}},
+    {"direction":"host-to-backend","message":{"jsonrpc":"2.0","id":"sdk-3","result":{"window_id":"w1","document_id":"d1","loaded":true,"note":"actual doc ID is generated and descriptor contains additional fields"}}},
+    {"direction":"backend-to-host","message":{"jsonrpc":"2.0","id":"sdk-4","method":"document.command","params":{"window_id":"w1","document_id":"d1","command":{"op":"set_text","element":"message","text":"Ready"}}}},
+    {"direction":"backend-to-host","message":{"jsonrpc":"2.0","id":"sdk-5","method":"app.ready","params":{}}},
+    {"direction":"host-to-backend","message":{"jsonrpc":"2.0","id":"host:decision:1","method":"window.before_close","params":{"window_id":"w1","reason":"native_close"}}},
+    {"direction":"backend-to-host","message":{"jsonrpc":"2.0","id":"host:decision:1","result":{"allow":true}}}
+  ],
+  "warning": "Sample result objects with note placeholders are NOT valid exact response fixtures and must not enter the conformance suite unchanged. This sample illustrates sequencing only."
+}
