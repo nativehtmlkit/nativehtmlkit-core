@@ -1,14 +1,16 @@
-# NativeHTMLKit Core — Agent policy
+# nativehtmlkit-core — development-agent instructions
 
-1. This repo owns *only* the Rust host, renderer, document, assets, protocol specification and its tests. Do not move Python/PowerShell SDK runtimes into Core.
-2. Preserve original functionality and regressions. Original user source is identified in `SOURCE_PROVENANCE.json`.
-3. Protocol v1 is the public-stable wire contract since host 1.0.3 (`protocol/README.md`, `protocol/COMPATIBILITY.md`): changes within v1 must be additive; anything else needs protocol version 2. Preserve v1 wire identifiers `UI4ME_*` for credential transport, old resource schemes and attributes; NativeHTMLKit aliases are additive.
-4. Test affected Rust crates first, then cargo fmt/clippy/test workspace and real desktop/CLI integration. Do not mark tests PASS without execution evidence.
-5. Build, test, and stage locally. No GitHub Actions (even manual ones), PyPI or PSGallery. GitHub Releases only after explicit approval.
-6. Restore the original font fixtures using scripts/restore-source-assets.py from the original ZIP. Do not generate/rebrand fonts.
-7. Use qualified immutable Core binary release artifacts for dependent repos. Local development override is allowed with explicit executable path.
-8. When a protocol-visible type or behavior changes: run `python3 scripts/generate-protocol-contract.py`, re-bless the golden with `NATIVEHTMLKIT_CONFORMANCE_BLESS=1 cargo test -p nativehtmlkit-host --test protocol_conformance`, and confirm the diff is additive per `protocol/COMPATIBILITY.md`. Never rename wire-visible `ui4me` identifiers or vendored-Stylo names in a product rename.
-9. Report blocked qualification steps and failures; do not fabricate screenshots, test logs, or success claims.
-10. Keep per-repo commits/pushes independent; no submodules or private source-path dependencies.
+**Ownership:** Native Rust host and wire protocol.
 
-Read `protocol/README.md`, `protocol/COMPATIBILITY.md`, `protocol/CONFORMANCE-ROADMAP.md` and the sibling CLI `AGENTS.md` before any cross-repo work. If started standalone, do not assume the sibling checkout exists.
+This is an independent Git repository in the NativeHTMLKit ecosystem. Central issue tracking, approval and cross-repository coordination are in the private workspace `nativehtmlkit-project` under `work/bugs/` and `work/features/` (normally at `../../work/`). When cloning this repository alone, locate that private workspace using `NHK_PROJECT_ROOT`; do not create a duplicate issue register in this repository.
+
+## Mandatory behavior
+
+1. Read the root Project `AGENTS.md`, `governance/SCOPE.md`, `governance/ARCHITECTURE.md`, `governance/WORKFLOW.md`, and generated `STATUS.md` if the workspace is available. Read this repository's README, `docs/ARCHITECTURE.md` and `docs/BUILD.md` as relevant.
+2. Only implement an expressly approved `B-####` or `F-####` task. Scope repository changes to the assigned issue; unrelated defects must be recorded and deferred, unless blocking or security-critical.
+3. Core owns native windowing, DOM/CSS engine, OS integration, wire protocol and Rust tests. Never change Core to satisfy a consumer convenience request without a separately approved Core bug/feature. Keep protocol compatibility and provenance/license notices.
+4. Never silently modify another repository, publish packages, create release tags, bump versions, erase test evidence or change native host binaries. Those actions need separate task authorization and qualification.
+5. Verify against the actual public API and released binary versions. Report exact commands, pass/fail/skip, runtime/OS and outstanding issues. Keep issue records current and regenerate central `STATUS.md` after work.
+6. Public README/API/tutorials contain **only** verified user-facing information and never private workspace logs, credential details or release plans. Repo-local architecture is owned here, not duplicated in landing docs.
+
+For this repository's public user documentation, start at its `README.md` and `docs/`. For public onboarding across all entrypoints, see https://github.com/nativehtmlkit/nativehtmlkit .
