@@ -120,6 +120,10 @@ fn logon_sid() -> Result<String> {
         .find(|item| item.Attributes & LOGON_ID == LOGON_ID)
         .context("process has no logon SID; start the GUI inside the interactive desktop session")?
         .Sid;
+    Ok(sid_string(sid)?)
+}
+
+fn sid_string(sid: PSID) -> io::Result<String> {
     let mut text = null_mut();
     bool_result(unsafe { ConvertSidToStringSidW(sid, &mut text) })?;
     let _allocation = LocalAllocation(text.cast());
@@ -132,6 +136,51 @@ fn logon_sid() -> Result<String> {
     Ok(String::from_utf16_lossy(unsafe {
         std::slice::from_raw_parts(text, length)
     }))
+}
+
+/// The user SID of a process's primary token, as a string (CORE-A-08 server check).
+fn process_user_sid(process: HANDLE) -> io::Result<String> {
+    let mut raw = null_mut();
+    bool_result(unsafe { OpenProcessToken(process, TOKEN_QUERY, &mut raw) })?;
+    let token = Handle::checked(raw)?;
+    let mut needed = 0_u32;
+    unsafe {
+        GetTokenInformation(token.0, TokenUser, null_mut(), 0, &mut needed);
+    }
+    if needed == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let mut storage = vec![0_usize; (needed as usize).div_ceil(size_of::<usize>())];
+    bool_result(unsafe {
+        GetTokenInformation(
+            token.0,
+            TokenUser,
+            storage.as_mut_ptr().cast(),
+            needed,
+            &mut needed,
+        )
+    })?;
+    let user = storage.as_ptr().cast::<TOKEN_USER>();
+    sid_string(unsafe { (*user).User.Sid })
+}
+
+/// CORE-A-08: the process serving a connected pipe must run as the same user as this one, so
+/// a pipe name squatted by another account is never used (its creator could read the launch
+/// credential or argv/cwd of a secondary launch).
+fn verify_pipe_server(pipe: HANDLE) -> io::Result<()> {
+    let mut pid = 0_u32;
+    bool_result(unsafe { GetNamedPipeServerProcessId(pipe, &mut pid) })?;
+    let process =
+        Handle::checked(unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) })?;
+    let server = process_user_sid(process.0)?;
+    let own = process_user_sid(unsafe { GetCurrentProcess() })?;
+    if server != own {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "the local pipe is served by another user's process",
+        ));
+    }
+    Ok(())
 }
 
 fn session_id() -> Result<u32> {
@@ -307,6 +356,11 @@ impl NativeListener {
             }
             return Ok(None);
         }
+        // CORE-A-08: create the next instance before handing out the connected one, so the
+        // name never has zero instances (another user could otherwise create it with a
+        // permissive DACL once this connection closes). A failure is retried by the next
+        // accept, as before.
+        self.pending = self.create_pipe(false).ok();
         Ok(Some(NativeStream::new(handle)))
     }
 }
@@ -410,12 +464,16 @@ impl NativeStream {
                     0,
                     null(),
                     OPEN_EXISTING,
-                    FILE_FLAG_OVERLAPPED,
+                    // CORE-A-08: the server may identify, never impersonate, this client.
+                    FILE_FLAG_OVERLAPPED | SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION,
                     null_mut(),
                 )
             };
             match Handle::checked(raw) {
-                Ok(handle) => return Ok(Self::new(handle)),
+                Ok(handle) => {
+                    verify_pipe_server(handle.0)?;
+                    return Ok(Self::new(handle));
+                }
                 Err(error)
                     if matches!(
                         error.raw_os_error().map(|v| v as u32),
@@ -966,11 +1024,16 @@ pub fn initialize_application(app_id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Where live-bitmap transport files are created. `%TEMP%` is already per-user (profile ACL), and
-/// clients/qualification tooling look for the transport there, so the location is unchanged; the
-/// file name carries the host pid for the startup sweep (CORE-A-02).
+/// Where live-bitmap transport files are created: `%TEMP%\nativehtmlkit-bitmaps` (since Core
+/// 1.0.3; `%TEMP%` itself before). `%TEMP%` is per-user (profile ACL); clients map the path that
+/// `bitmap.create` returns, and leak checks must look in the subdirectory. The file name carries
+/// the host pid for the startup sweep (CORE-A-02).
 pub fn bitmap_directory() -> Result<PathBuf> {
-    Ok(std::env::temp_dir())
+    // FR-R-15: a dedicated directory, so the startup sweep reads only transport files and never
+    // all of %TEMP% (which may hold hundreds of thousands of entries) on the GUI thread.
+    let path = std::env::temp_dir().join("nativehtmlkit-bitmaps");
+    std::fs::create_dir_all(&path)?;
+    Ok(path)
 }
 
 /// Whether a process with `pid` is still running. Failure to inspect an existing process (access
@@ -1046,6 +1109,35 @@ pub fn executable_file_type(path: &std::path::Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// CORE-A-08: after an accept the listener already owns the next pipe instance, and a
+    /// client of a same-user server passes the server check (with SQOS identification).
+    #[test]
+    fn accepted_connection_leaves_a_pipe_instance_and_the_server_is_verified() {
+        let endpoint = format!(r"\\.\pipe\nativehtmlkit-a08-test-{}", std::process::id());
+        let mut listener = NativeListener::bind(&endpoint).unwrap();
+        let client_endpoint = endpoint.clone();
+        let client = std::thread::spawn(move || {
+            NativeStream::connect(&client_endpoint, Duration::from_secs(5)).map(|_| ())
+        });
+        let stop = AtomicBool::new(false);
+        let stream = listener.accept(&stop).unwrap().expect("a connection");
+        assert!(listener.pending.is_some(), "no pipe instance after accept");
+        client
+            .join()
+            .unwrap()
+            .expect("same-user server must pass verification");
+        stream.shutdown();
+        // The name stays served: a second client connects without the listener accepting first.
+        let second = std::thread::spawn(move || {
+            NativeStream::connect(&endpoint, Duration::from_secs(5)).map(|_| ())
+        });
+        assert!(listener.accept(&stop).unwrap().is_some());
+        second.join().unwrap().unwrap();
+        let own = process_user_sid(unsafe { GetCurrentProcess() }).unwrap();
+        assert!(own.starts_with("S-1-"), "{own}");
+    }
+
     #[test]
     fn windows_arguments_preserve_quotes_and_trailing_slashes() {
         let quoted =

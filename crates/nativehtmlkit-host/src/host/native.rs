@@ -454,6 +454,11 @@ impl Host {
             let Some(native) = &mut record.native else {
                 return Ok(());
             };
+            if native.reveal_deadline.is_some() {
+                // Not revealed yet (NHK-CROSS-0006): no buffer is committed, so Wayland does
+                // not map the window with the placeholder page.
+                return Ok(());
+            }
             let size = native.window.surface_size();
             let (Some(width), Some(height)) =
                 (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
@@ -619,9 +624,11 @@ impl ApplicationHandler for Host {
             || !self.jobs.is_empty()
             || self.connected.keys().any(|id| Some(*id) != self.client);
         let interval = if deadlines_pending { 50 } else { 500 };
-        event_loop.set_control_flow(ControlFlow::WaitUntil(
-            Instant::now() + self.document_wait_interval(Duration::from_millis(interval)),
-        ));
+        let mut wait = self.document_wait_interval(Duration::from_millis(interval));
+        if let Some(reveal) = self.reveal_wait() {
+            wait = wait.min(reveal.max(Duration::from_millis(1)));
+        }
+        event_loop.set_control_flow(ControlFlow::WaitUntil(Instant::now() + wait));
     }
 
     fn window_event(

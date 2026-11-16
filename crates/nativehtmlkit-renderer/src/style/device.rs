@@ -34,8 +34,8 @@ pub struct StyleEnvironment {
 }
 
 impl StyleEnvironment {
-    /// The windowless default viewport: 800 x 600 CSS px at scale 1.0 (OD-42, pending owner
-    /// decision; the host can set another size).
+    /// The windowless default viewport: 800 x 600 CSS px at scale 1.0 (OD-42, approved by
+    /// the project owner on 2026-11-16; the host can set another size).
     pub fn windowless_default() -> StyleEnvironment {
         StyleEnvironment::new(800.0, 600.0, 1.0)
     }

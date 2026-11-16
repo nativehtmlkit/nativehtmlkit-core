@@ -109,7 +109,14 @@ pub(super) fn decorate(
                 .map(|n| n as u32)
                 .or(node.level);
         }
-        if e.local_name() == "select" && node.relations.active_descendant.is_none() {
+        // Only a list box exposes its selected option as active descendant. AccessKit's AT-SPI and
+        // UIA adapters move platform focus to a focused node's active descendant, so on a
+        // drop-down combobox it put focus on the option and never on the combo box
+        // (NHK-CROSS-0009); the combobox's value and its options' selected state carry it.
+        if e.local_name() == "select"
+            && node.role == Role::ListBox
+            && node.relations.active_descendant.is_none()
+        {
             node.relations.active_descendant = d
                 .select_options(dom)
                 .into_iter()

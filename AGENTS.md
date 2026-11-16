@@ -2,7 +2,7 @@
 
 1. This repo owns *only* the Rust host, renderer, document, assets, protocol specification and its tests. Do not move Python/PowerShell SDK runtimes into Core.
 2. Preserve original functionality and regressions. Original user source is identified in `SOURCE_PROVENANCE.json`.
-3. Protocol v1 is a locked release candidate (`protocol/README.md`); it becomes public-stable only when the open gates in `protocol/CONFORMANCE-ROADMAP.md` pass. Preserve v1 wire identifiers `UI4ME_*` for credential transport, old resource schemes and attributes; NativeHTMLKit aliases are additive.
+3. Protocol v1 is the public-stable wire contract since host 1.0.3 (`protocol/README.md`, `protocol/COMPATIBILITY.md`): changes within v1 must be additive; anything else needs protocol version 2. Preserve v1 wire identifiers `UI4ME_*` for credential transport, old resource schemes and attributes; NativeHTMLKit aliases are additive.
 4. Test affected Rust crates first, then cargo fmt/clippy/test workspace and real desktop/CLI integration. Do not mark tests PASS without execution evidence.
 5. Build, test, and stage locally. No GitHub Actions (even manual ones), PyPI or PSGallery. GitHub Releases only after explicit approval.
 6. Restore the original font fixtures using scripts/restore-source-assets.py from the original ZIP. Do not generate/rebrand fonts.

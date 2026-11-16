@@ -6,7 +6,7 @@
  *
  * Block 1 (§15.5.x "Form controls") derives from the WHATWG HTML Living Standard, Copyright ©
  * WHATWG (Apple, Google, Mozilla, Microsoft), CC-BY-4.0, https://creativecommons.org/licenses/by/4.0/
- * (OD-26 default, pending owner approval). Block 2 states the UA padding and border values of
+ * (OD-26, approved by the project owner on 2026-11-15). Block 2 states the UA padding and border values of
  * 012 `contracts/controls.md` section 4 (Chromium-like, OD-28 deterministic theme) and is owned
  * by nativehtmlkit. Changes and the omitted rules are listed in ua/PROVENANCE.md (M4, M11, M12).
  */

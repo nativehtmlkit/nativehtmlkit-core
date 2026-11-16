@@ -553,6 +553,15 @@ fn await_acknowledgement(
     }
 }
 
+/// Signal the backend's process group unless the event loop has already reaped the backend
+/// (the shared id is then 0): a reaped group id may have been reused (FR-R-13).
+fn signal_live_group(group: &std::sync::atomic::AtomicU32, kill: impl FnOnce(i32)) {
+    match i32::try_from(group.load(Ordering::SeqCst)) {
+        Ok(group) if group > 1 => kill(group),
+        _ => {}
+    }
+}
+
 /// Runs on the watcher thread after launcher loss has been signalled. A host
 /// whose event loop is blocked never consumes the flag, so this thread ends the
 /// process itself: best-effort SIGKILL of the backend process group, one stderr
@@ -569,14 +578,11 @@ fn launcher_watchdog(watchdog: &super::LauncherWatchdog) {
     ) {
         return;
     }
-    if let Some(group) = watchdog
-        .backend_group
-        .and_then(|pid| i32::try_from(pid).ok())
-    {
+    signal_live_group(&watchdog.backend_group, |group| {
         // SAFETY: plain signal delivery to the backend's own process group
         // (spawn_backend makes the backend a session and group leader).
         unsafe { libc::kill(-group, libc::SIGKILL) };
-    }
+    });
     let line = crate::logging::emergency_record(&format!(
         "launcher exited and the event loop did not begin shutdown within {} ms; terminating the host",
         grace.as_millis()
@@ -610,16 +616,46 @@ pub fn watch_launcher(
     let gone = std::sync::Arc::new(AtomicBool::new(false));
     // SAFETY: pidfd_open takes a PID and flags and returns a new descriptor.
     let raw = unsafe { libc::syscall(libc::SYS_pidfd_open, pid as libc::pid_t, 0) };
-    let pidfd = if raw >= 0 {
+    let opened = if raw >= 0 {
         // SAFETY: the successful syscall returned a descriptor we now own.
-        Some(unsafe { OwnedFd::from_raw_fd(raw as i32) })
+        Ok(unsafe { OwnedFd::from_raw_fd(raw as i32) })
     } else {
-        None
+        Err(io::Error::last_os_error().raw_os_error().unwrap_or(0))
     };
     // Check identity after opening the pidfd so a PID reused before the open
     // cannot be mistaken for the launcher.
     let same = process_start_time(pid).ok() == Some(start);
-    let Some(pidfd) = pidfd.filter(|_| same) else {
+    let pidfd = match launcher_watch(opened, same) {
+        LauncherWatch::Pidfd(pidfd) => Some(pidfd),
+        LauncherWatch::Poll(errno) => {
+            // CORE-A-10: pidfd_open is unavailable (kernel < 5.3: ENOSYS; a seccomp filter:
+            // EPERM) or failed for lack of resources; the launcher itself is alive. Poll its
+            // identity instead of declaring it gone.
+            tracing::warn!(
+                errno,
+                "pidfd_open failed; watching the launcher by polling its process identity"
+            );
+            let flag = gone.clone();
+            let spawned = std::thread::Builder::new()
+                .name("nativehtmlkit-launcher-watch".into())
+                .spawn(move || {
+                    poll_until_gone(
+                        || process_start_time(pid).ok() == Some(start),
+                        std::thread::sleep,
+                    );
+                    tracing::warn!("launcher exited; shutting down the supervised application");
+                    flag.store(true, Ordering::SeqCst);
+                    wake();
+                    launcher_watchdog(&watchdog);
+                });
+            if let Err(error) = spawned {
+                tracing::warn!(%error, "cannot start launcher watch");
+            }
+            return Some(gone);
+        }
+        LauncherWatch::Gone => None,
+    };
+    let Some(pidfd) = pidfd else {
         tracing::warn!("launcher already exited; shutting down the supervised application");
         gone.store(true, Ordering::SeqCst);
         wake();
@@ -660,6 +696,34 @@ pub fn watch_launcher(
         tracing::warn!(%error, "cannot start launcher watch");
     }
     Some(gone)
+}
+
+/// How the launcher is watched, from the `pidfd_open` outcome (descriptor or errno) and
+/// whether the PID still has the launcher's start time (CORE-A-10).
+#[derive(Debug)]
+enum LauncherWatch<T> {
+    Pidfd(T),
+    /// pidfd_open failed with this errno while the launcher is alive: poll its identity.
+    Poll(i32),
+    Gone,
+}
+
+fn launcher_watch<T>(opened: Result<T, i32>, same_identity: bool) -> LauncherWatch<T> {
+    match (opened, same_identity) {
+        (_, false) | (Err(libc::ESRCH), _) => LauncherWatch::Gone,
+        (Ok(pidfd), true) => LauncherWatch::Pidfd(pidfd),
+        (Err(errno), true) => LauncherWatch::Poll(errno),
+    }
+}
+
+/// Interval of the identity poll used when pidfd_open is unavailable.
+const LAUNCHER_POLL: Duration = Duration::from_millis(500);
+
+/// Return once `alive` reports false, checking every [`LAUNCHER_POLL`].
+fn poll_until_gone(mut alive: impl FnMut() -> bool, mut sleep: impl FnMut(Duration)) {
+    while alive() {
+        sleep(LAUNCHER_POLL);
+    }
 }
 
 pub fn is_systemd_managed() -> bool {
@@ -871,6 +935,61 @@ pub fn initialize_application(_app_id: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// CORE-A-10: a failed pidfd_open of a live launcher (ENOSYS, EPERM, EMFILE ...) falls back
+    /// to polling instead of shutting the application down; only a missing or replaced
+    /// launcher process counts as gone.
+    #[test]
+    fn pidfd_failure_of_a_live_launcher_falls_back_to_polling() {
+        assert!(matches!(
+            launcher_watch(Ok(5), true),
+            LauncherWatch::Pidfd(5)
+        ));
+        for errno in [libc::ENOSYS, libc::EPERM, libc::EMFILE, libc::ENOMEM] {
+            assert!(matches!(
+                launcher_watch::<i32>(Err(errno), true),
+                LauncherWatch::Poll(e) if e == errno
+            ));
+        }
+        assert!(matches!(
+            launcher_watch::<i32>(Err(libc::ESRCH), true),
+            LauncherWatch::Gone
+        ));
+        assert!(matches!(launcher_watch(Ok(5), false), LauncherWatch::Gone));
+        assert!(matches!(
+            launcher_watch::<i32>(Err(libc::ENOSYS), false),
+            LauncherWatch::Gone
+        ));
+        // The poll returns exactly when the identity check first fails.
+        let mut checks = 0;
+        let mut slept = Duration::ZERO;
+        poll_until_gone(
+            || {
+                checks += 1;
+                checks < 4
+            },
+            |step| slept += step,
+        );
+        assert_eq!((checks, slept), (4, 3 * LAUNCHER_POLL));
+    }
+
+    /// FR-R-13: once the event loop has reaped the backend (and cleared the shared id), the
+    /// watchdog sends no signal; a live backend's group is signalled once.
+    #[test]
+    fn watchdog_never_signals_a_reaped_backend_group() {
+        use std::sync::atomic::AtomicU32;
+        let group = AtomicU32::new(4242);
+        let mut sent = Vec::new();
+        signal_live_group(&group, |g| sent.push(g));
+        assert_eq!(sent, [4242]);
+        group.store(0, Ordering::SeqCst); // reaped by the event loop
+        signal_live_group(&group, |g| sent.push(g));
+        for invalid in [1, u32::MAX] {
+            group.store(invalid, Ordering::SeqCst); // init / not a valid pid_t
+            signal_live_group(&group, |g| sent.push(g));
+        }
+        assert_eq!(sent, [4242]);
+    }
 
     /// NHK-CROSS-0001: the watchdog bound is the shutdown timeout plus a margin, never
     /// below the minimum.

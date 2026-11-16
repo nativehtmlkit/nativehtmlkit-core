@@ -55,12 +55,36 @@ impl Drop for LogGuard {
 /// Map user-facing diagnostics levels to an explicit, bounded set of filters.
 /// Unknown input fails closed to normal output; user-provided filter expressions
 /// are not interpreted here (RUST_LOG remains available for advanced developers).
+///
+/// NHK-CROSS-0007: the relayed backend output (the records emitted by
+/// [`backend_logs`] under [`BACKEND_OUTPUT_TARGET`]) is application output, not a
+/// host diagnostic, so every level keeps it; `off` silences only the host's own
+/// non-error records.
 fn diagnostic_filter(level: &str) -> &'static str {
     match level.trim().to_ascii_lowercase().as_str() {
-        "off" => "nativehtmlkit_host=error",
-        "debug" => "nativehtmlkit_host=debug",
-        "trace" => "nativehtmlkit_host=trace",
-        _ => "nativehtmlkit_host=info",
+        "off" => "nativehtmlkit_host=error,nativehtmlkit_host::logging=info",
+        "debug" => "nativehtmlkit_host=debug,nativehtmlkit_host::logging=info",
+        "trace" => "nativehtmlkit_host=trace,nativehtmlkit_host::logging=info",
+        _ => "nativehtmlkit_host=info,nativehtmlkit_host::logging=info",
+    }
+}
+
+/// Target of the relayed backend output records (unchanged from 1.0.2, so record
+/// shapes stay the same). Only [`backend_logs`] logs under it.
+const BACKEND_OUTPUT_TARGET: &str = "nativehtmlkit_host::logging";
+
+/// An explicit `RUST_LOG` stays the expert override, but unless it names the
+/// backend-output target itself, backend output is still relayed.
+fn with_backend_output(
+    filter: tracing_subscriber::EnvFilter,
+    raw: &str,
+) -> tracing_subscriber::EnvFilter {
+    if raw.contains(BACKEND_OUTPUT_TARGET) {
+        return filter;
+    }
+    match format!("{BACKEND_OUTPUT_TARGET}=info").parse() {
+        Ok(directive) => filter.add_directive(directive),
+        Err(_) => filter,
     }
 }
 
@@ -149,13 +173,16 @@ pub fn init() -> Result<LogGuard> {
         .with_env_filter(
             // RUST_LOG is the explicit expert override. Otherwise the shared SDK/CLI
             // flag controls the host logging level without a wire protocol change.
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                tracing_subscriber::EnvFilter::new(diagnostic_filter(
+            match tracing_subscriber::EnvFilter::try_from_default_env() {
+                Ok(filter) => {
+                    with_backend_output(filter, &std::env::var("RUST_LOG").unwrap_or_default())
+                }
+                Err(_) => tracing_subscriber::EnvFilter::new(diagnostic_filter(
                     std::env::var("NATIVEHTMLKIT_DIAGNOSTICS")
                         .as_deref()
                         .unwrap_or("normal"),
-                ))
-            }),
+                )),
+            },
         )
         .json()
         .with_ansi(false)
@@ -193,11 +220,12 @@ pub(crate) fn emergency_record(message: &str) -> String {
 pub fn backend_logs(lines: Vec<LogLine>) {
     let omitted = lines.len().saturating_sub(BACKEND_RECORDS_PER_PUMP);
     for line in lines.into_iter().take(BACKEND_RECORDS_PER_PUMP) {
-        tracing::info!(source = "backend", stream = %line.stream, text = %line.text, "backend output");
+        tracing::info!(target: BACKEND_OUTPUT_TARGET, source = "backend", stream = %line.stream, text = %line.text, "backend output");
     }
     if omitted != 0 {
         BACKEND_OMITTED.fetch_add(omitted as u64, Ordering::Relaxed);
         tracing::warn!(
+            target: BACKEND_OUTPUT_TARGET,
             source = "backend",
             omitted_records = omitted,
             "backend log batch exceeded the GUI formatting budget"
@@ -222,14 +250,79 @@ mod tests {
 
     #[test]
     fn diagnostic_level_mapping_is_explicit_and_safe() {
-        assert_eq!(diagnostic_filter("normal"), "nativehtmlkit_host=info");
-        assert_eq!(diagnostic_filter("DEBUG"), "nativehtmlkit_host=debug");
-        assert_eq!(diagnostic_filter("trace"), "nativehtmlkit_host=trace");
-        assert_eq!(diagnostic_filter("off"), "nativehtmlkit_host=error");
+        let relay = ",nativehtmlkit_host::logging=info";
+        assert_eq!(
+            diagnostic_filter("normal"),
+            format!("nativehtmlkit_host=info{relay}")
+        );
+        assert_eq!(
+            diagnostic_filter("DEBUG"),
+            format!("nativehtmlkit_host=debug{relay}")
+        );
+        assert_eq!(
+            diagnostic_filter("trace"),
+            format!("nativehtmlkit_host=trace{relay}")
+        );
+        assert_eq!(
+            diagnostic_filter("off"),
+            format!("nativehtmlkit_host=error{relay}")
+        );
         assert_eq!(
             diagnostic_filter("nonsense=trace"),
-            "nativehtmlkit_host=info"
+            format!("nativehtmlkit_host=info{relay}")
         );
+    }
+
+    /// NHK-CROSS-0007: at every level (and under an unrelated RUST_LOG) the relayed
+    /// backend output passes the filter, while `off` still drops host info records.
+    #[test]
+    fn backend_output_passes_every_filter() {
+        #[derive(Clone, Default)]
+        struct Sink(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+        impl Write for Sink {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().extend_from_slice(bytes);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let filters = ["off", "normal", "debug", "trace"]
+            .map(|level| {
+                (
+                    level,
+                    tracing_subscriber::EnvFilter::new(diagnostic_filter(level)),
+                )
+            })
+            .into_iter()
+            .chain([(
+                "RUST_LOG=error",
+                with_backend_output(tracing_subscriber::EnvFilter::new("error"), "error"),
+            )]);
+        for (name, filter) in filters {
+            let sink = Sink::default();
+            let captured = sink.clone();
+            let subscriber = tracing_subscriber::fmt()
+                .json()
+                .with_env_filter(filter)
+                .with_writer(move || sink.clone())
+                .finish();
+            tracing::subscriber::with_default(subscriber, || {
+                tracing::info!(target: "nativehtmlkit_host::host", "host-info-record");
+                backend_logs(vec![LogLine {
+                    stream: "stdout".into(),
+                    text: "app-output-line".into(),
+                }]);
+            });
+            let text = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
+            assert!(text.contains("app-output-line"), "{name}: {text}");
+            assert_eq!(
+                text.contains("host-info-record"),
+                !matches!(name, "off" | "RUST_LOG=error"),
+                "{name}: {text}"
+            );
+        }
     }
 
     #[test]

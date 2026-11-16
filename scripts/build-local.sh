@@ -30,8 +30,11 @@ PKGS=(-p nativehtmlkit-host -p nativehtmlkit-renderer -p nativehtmlkit-document 
 cargo fmt "${PKGS[@]}" -- --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace -- --test-threads="${RUST_TEST_THREADS:-4}"
-cargo build --locked --release -p nativehtmlkit-host
+# Release build with --remap-path-prefix (no local home/workspace path in the binary, FR-R-06);
+# the host embeds its source identity, which staging compares with this checkout (FR-R-04).
+python3 scripts/release-local.py --build
 ./target/release/nativehtmlkit-host --version
+./target/release/nativehtmlkit-host --version --verbose
 # An existing same-version stage with a different host is refused; NHK_RESTAGE=1 replaces it.
 python3 scripts/release-local.py --stage-only ${NHK_RESTAGE:+--restage}
 printf 'Source gate passed. Native KDE Wayland and interactive Windows GUI tests are separate requirements.\n'

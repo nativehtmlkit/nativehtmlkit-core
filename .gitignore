@@ -1,5 +1,6 @@
 /target/
 /dist/
+/SOURCE_IDENTITY.json
 /verification/
 /*.log
 /.venv/

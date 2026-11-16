@@ -2,6 +2,7 @@
 //! from protocol and lifecycle verification; see docs/concepts/architecture.md.
 pub mod accessibility;
 pub mod backend;
+pub mod build_info;
 pub mod config;
 pub mod host;
 pub mod icons;

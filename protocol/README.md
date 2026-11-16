@@ -1,20 +1,21 @@
 # NativeHTMLKit host protocol, version 1
 
-**Status: v1 wire contract locked as a release candidate (`1.0-rc`), not yet declared public-stable.**
+**Status: v1 is the public-stable wire contract (`1.0`), declared with host 1.0.3** (gate C8 in
+[`CONFORMANCE-ROADMAP.md`](CONFORMANCE-ROADMAP.md)). Changes within v1 are additive only, as
+[`COMPATIBILITY.md`](COMPATIBILITY.md) defines; anything else needs protocol version 2.
 The parameter schemas and the 81 `document.command` ops are generated from the Rust serde types;
 the method list is maintained in the generator and checked against the host's dispatch `match`
 arms. Envelope behavior and result shapes are locked by a runtime golden run against the compiled
-host on Linux (Unix socket) and Windows (named pipe). The *stable* declaration additionally requires the open native gates in
-[`CONFORMANCE-ROADMAP.md`](CONFORMANCE-ROADMAP.md) (IME, DPI scaling, screen-reader journeys and
-native dialogs/clipboard/drag-drop GUI evidence). Until then SDK authors may build against v1, but
-must treat the items listed there as unqualified.
+host on Linux (Unix socket) and Windows (named pipe). The native gates (IME, display scaling,
+screen-reader journeys, multi-monitor, native dialogs and clipboard) were qualified on the
+real desktops recorded in [`CONFORMANCE-ROADMAP.md`](CONFORMANCE-ROADMAP.md) C6.
 
 | Artifact | What it is | Authority |
 |---|---|---|
 | [`v1/method-matrix.json`](v1/method-matrix.json) | Every message: direction, kind, Rust param type, unknown-member policy | `scripts/generate-protocol-contract.py`: param types parsed from Rust; method list hand-maintained and `--check`ed against the dispatch arms |
 | [`v1/schemas/methods/*.params.schema.json`](v1/schemas/methods) | JSON Schema (2020-12) per client→host method | Generated from the serde types |
 | [`v1/schemas/document-command.schema.json`](v1/schemas/document-command.schema.json) | All 81 `document.command` ops (`oneOf`, tag `op`) | Generated from `DocumentCommand` |
-| [`v1/conformance/golden.json`](v1/conformance/golden.json) | 338 cases: error code, or result member kinds + boolean values / array length (see below) | Runtime: `crates/nativehtmlkit-host/tests/protocol_conformance.rs` |
+| [`v1/conformance/golden.json`](v1/conformance/golden.json) | 342 cases: error code, or result member kinds + boolean values / array length (see below) | Runtime: `crates/nativehtmlkit-host/tests/protocol_conformance.rs` |
 | [`COMPATIBILITY.md`](COMPATIBILITY.md) | Versioning and compatibility policy | Project decision |
 | [`SDK-AUTHORING.md`](SDK-AUTHORING.md) | How to write an independent client | Guide |
 
@@ -85,6 +86,9 @@ Requests: `{"jsonrpc":"2.0","id":<string>,"method":<string>,"params":<object>}`;
 | A request ID reused while the original is pending | fatal: the session is failed |
 
 Clients must therefore send **unique string IDs** and never batches. At most 128 requests may be pending.
+Responses are correlated by `id` only, never by order: since host 1.0.3 a `document.load` with
+`path` or `asset_root` is answered when its file read finishes (on a worker thread), so responses
+to requests sent after it can arrive first. Inline-`html` loads are answered in order as before.
 
 ## 4. Authentication
 
@@ -151,6 +155,33 @@ just that window (`window.event {type:"closed"}`) and startup continues. A backe
 usable window, or a user's native close of *any* window during startup, cancels startup: the host
 sends `app.shutdown` and stops.
 
+**Output backpressure (host 1.0.3).** A backend that stops reading its connection while input
+arrives is no longer disconnected because of `window.event`/`document.event` notifications: once
+its outbound queue holds three quarters of its bound (96 messages or 6 MiB), further
+`window.event` and `document.event` notifications are dropped and counted in `host.diagnostics`
+`dropped_notifications` (one `warn` record per episode). Responses, host requests (`{allow}`
+decisions) and all other notifications are never dropped; a backend that leaves even those unread
+past the full bound still fails the session as before. Clients that must not lose events must keep
+reading while they work.
+
+**First presentation of a new window (host 1.0.3, NHK-CROSS-0006).** A native window created by
+`window.create` is first presented when its first `document.load` succeeds, or at the latest
+`750 ms` after creation if no document arrives (then the built-in placeholder page is shown), so a
+promptly loading client never shows the placeholder. On Windows the window is shown at that point
+(until then `observed.visible` is `false` and a `window.set {visible}` is applied when it is
+shown); on Wayland no buffer is committed before that point, so the compositor maps it then
+(hidden windows remain unsupported on Wayland, `-32001`). The standalone `probe` window and the
+application-failure window are presented at once; headless mode has no native windows.
+
+**Initial size and position (host 1.0.3).** On Windows a new window's frame is clamped to the
+work area of the monitor it opens on and moved fully inside it before it is shown (the requested
+or default `900x560` size at a high scale factor, or the system cascade position of a later
+window, could otherwise leave it partly below the taskbar or screen edge). On Wayland the
+compositor positions windows; the requested surface size is clamped to the smallest output's
+logical size. The `width`/`height` reported by `window.create`/`window.get` stay as requested;
+`physical_size` and `observed.position` report the actual geometry. Explicit positions set later with
+`window.set {x, y}` are not adjusted.
+
 **No `closed` event for the last window (v1 behaviour).** When an allowed close of the last usable
 window starts shutdown (`window.before_close` allowed → `app.before_quit {reason:"last_window"}`
 allowed, or a startup cancellation as above), no `window.event {type:"closed"}` is sent for that
@@ -167,6 +198,10 @@ the CSS profile (`ui4me-desktop-1.0`, `ui4me-css/1`), the diagnostics schema (`u
 and paint-tier ids keep their v1 values.
 
 There is no JavaScript, HTTP loading or browser engine; markup is parsed and rendered by the host.
+
+Live-bitmap transport files (`bitmap.create`) are created in the host's private runtime directory
+on Linux and, since host 1.0.3, in `%TEMP%\nativehtmlkit-bitmaps\` on Windows (before: `%TEMP%`).
+Clients map the path that `bitmap.create` returns and must not assume a directory.
 
 ## 9. Known limitations (v1)
 
@@ -187,6 +222,13 @@ There is no JavaScript, HTTP loading or browser engine; markup is parsed and ren
   (the CLI kills the `host.diagnostics` `pid`). (NHK-CROSS-0001 residual; accepted for v1.)
 
 ## 10. Host diagnostics (not part of the wire contract)
+
+**Backend output is relayed at every level (host 1.0.3, NHK-CROSS-0007).** The backend's stdout
+and stderr lines (application output, fatal error text) are written to the host's stderr as
+`"source":"backend"` records at every `NATIVEHTMLKIT_DIAGNOSTICS` level, including `off`, and
+under an explicit `RUST_LOG` unless it names the `nativehtmlkit_host::logging` target itself.
+`off` silences only the host's own non-error records. The relay stays bounded and lossy, and the
+launch token is redacted.
 
 `NATIVEHTMLKIT_DIAGNOSTICS=normal|debug|trace` and `NATIVEHTMLKIT_DIAGNOSTIC_SESSION_ID` control the
 host's structured JSON stderr records (see the repository `README.md` "Local diagnostics" for the

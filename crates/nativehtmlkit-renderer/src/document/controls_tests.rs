@@ -413,3 +413,152 @@ fn slider_and_spinbutton_expose_values_and_actions() {
     .unwrap();
     assert_eq!(d.get_value("r").unwrap(), "10");
 }
+
+/// NHK-CROSS-0009 (KDE Wayland + Orca, Core 1.0.2/1.0.3-dev): the published AccessKit tree of a
+/// focused drop-down `<select>`. AccessKit (consumer `TreeState::focus`, `Node::is_focused`, used
+/// by both the AT-SPI and the UIA adapter) moves platform focus from the focused node to its
+/// `active_descendant`. The renderer gave a drop-down combobox its *selected* option as active
+/// descendant whether or not the popup was open, so AT-SPI put STATE_FOCUSED on the option list
+/// item and never on the combo box; Orca stayed in browse mode (a list item without a list-box
+/// ancestor is not a focus-mode widget) and swallowed the arrow keys. A drop-down's options are
+/// children of the combo box, so platform focus must stay on the combo box in every state: its
+/// current value is its value and its selected option the Selection child.
+fn assert_combo_keeps_platform_focus(d: &mut Document, step: &str, expanded: bool, value: &str) {
+    let t = d.accessibility_tree().unwrap();
+    let combo = node(&t, "drop").clone();
+    assert_eq!(combo.role, Role::ComboBox, "{step}");
+    assert_eq!(
+        t.focus, combo.id,
+        "{step}: the host tree focuses the combo box"
+    );
+    assert_eq!(combo.states.expanded, Some(expanded), "{step}");
+    assert_eq!(combo.value.as_deref(), Some(value), "{step}");
+    assert_eq!(
+        combo.relations.active_descendant, None,
+        "{step}: a drop-down exposes no active descendant (it would take platform focus)"
+    );
+    let selected: Vec<_> = combo
+        .children
+        .iter()
+        .map(|c| t.get(*c).unwrap())
+        .filter(|o| o.states.selected == Some(true))
+        .map(|o| (o.role, o.name.clone()))
+        .collect();
+    assert_eq!(
+        selected,
+        vec![(Role::ListBoxOption, value.to_string())],
+        "{step}"
+    );
+
+    let update = crate::a11y::full_update(&t);
+    let published = |id: u64| {
+        &update
+            .nodes
+            .iter()
+            .find(|(n, _)| n.0 == id)
+            .unwrap_or_else(|| panic!("{step}: node {id} not published"))
+            .1
+    };
+    assert_eq!(update.focus.0, combo.id, "{step}: published focus");
+    let ak = published(combo.id);
+    assert_eq!(ak.role(), Role::ComboBox, "{step}");
+    assert_eq!(ak.is_expanded(), Some(expanded), "{step}");
+    assert_eq!(ak.value(), Some(value), "{step}");
+    assert_eq!(
+        ak.active_descendant(),
+        None,
+        "{step}: AccessKit would report the option as the focused platform object"
+    );
+    // Published structure: combo box > list box (synthetic popup list) > options.
+    assert_eq!(ak.children().len(), 1, "{step}");
+    let list = &update
+        .nodes
+        .iter()
+        .find(|(n, _)| *n == ak.children()[0])
+        .unwrap_or_else(|| panic!("{step}: popup list not published"))
+        .1;
+    assert_eq!(list.role(), Role::ListBox, "{step}");
+    assert_eq!(
+        list.children().iter().map(|c| c.0).collect::<Vec<_>>(),
+        combo.children,
+        "{step}"
+    );
+    assert_eq!(list.active_descendant(), None, "{step}");
+}
+
+const DROP_PAGE: &str = "<label for=drop>Fruit</label> <select id=drop style='display:block;width:160px;font-size:16px'>\
+     <option>One</option><option>Two</option><option>Three</option></select>\
+     <select id=list size=3><option>One</option><option>Two</option><option>Three</option></select>";
+
+/// A viewport point inside the open popup's row `label`, found by real presses on fresh copies of
+/// `body` (the popup is a layered panel inside the window, laid out below the select).
+fn popup_row_point(body: &str, label: &str) -> (f64, f64) {
+    let (x, y, w, h) = crect(&mut page(body), "drop");
+    (1..200)
+        .map(|i| (x + w / 2.0, y + h + f64::from(i)))
+        .find(|&(px, py)| {
+            let mut probe = page(body);
+            click_el(&mut probe, "drop");
+            btn(&mut probe, true, px, py);
+            btn(&mut probe, false, px, py);
+            probe.get_value("drop").unwrap() == label
+        })
+        .unwrap_or_else(|| panic!("no popup row {label} below the select"))
+}
+
+#[test]
+fn dropdown_platform_focus_stays_on_the_combo_box_nhk_cross_0009() {
+    let mut d = page(DROP_PAGE);
+    // (a) collapsed and focused (keyboard focus without opening the popup).
+    d.focus("drop").unwrap();
+    assert_combo_keeps_platform_focus(&mut d, "collapsed focused", false, "One");
+
+    // (b) expanded by a real click, highlight moved to "Two" with the arrow key (not committed).
+    click_el(&mut d, "drop");
+    assert_combo_keeps_platform_focus(&mut d, "expanded by click", true, "One");
+    press(&mut d, "ArrowDown");
+    assert_eq!(
+        d.get_value("drop").unwrap(),
+        "One",
+        "the highlight is not committed"
+    );
+    assert_combo_keeps_platform_focus(&mut d, "expanded, highlight on Two", true, "One");
+
+    // (c) Escape closes the popup without committing; DOM focus stays on the select.
+    press(&mut d, "Escape");
+    assert_combo_keeps_platform_focus(&mut d, "after Escape", false, "One");
+
+    // Keyboard commit through the popup: open, ArrowDown, Enter.
+    click_el(&mut d, "drop");
+    press(&mut d, "ArrowDown");
+    press(&mut d, "Enter");
+    assert_eq!(d.get_value("drop").unwrap(), "Two");
+    assert_combo_keeps_platform_focus(&mut d, "after ArrowDown+Enter", false, "Two");
+
+    // (d) a click on a popup row selects it and closes the popup.
+    click_el(&mut d, "drop");
+    let (px, py) = popup_row_point(DROP_PAGE, "Three");
+    btn(&mut d, true, px, py);
+    btn(&mut d, false, px, py);
+    assert_eq!(
+        d.get_value("drop").unwrap(),
+        "Three",
+        "click-select picks the row"
+    );
+    assert_combo_keeps_platform_focus(&mut d, "after click-select", false, "Three");
+
+    // The control case: a list box keeps its selected option as active descendant (AccessKit then
+    // focuses the option, which Orca handles inside a list box).
+    d.focus("list").unwrap();
+    click_el(&mut d, "list");
+    let t = d.accessibility_tree().unwrap();
+    let list = node(&t, "list");
+    assert_eq!(list.role, Role::ListBox);
+    let chosen = list
+        .children
+        .iter()
+        .copied()
+        .find(|c| t.get(*c).unwrap().states.selected == Some(true));
+    assert!(chosen.is_some());
+    assert_eq!(list.relations.active_descendant, chosen);
+}

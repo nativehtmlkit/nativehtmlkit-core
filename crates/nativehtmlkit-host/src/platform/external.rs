@@ -75,8 +75,7 @@ pub fn start(
                 }
             }))
             .unwrap_or_else(|_| Err(anyhow::anyhow!("External service worker panicked")));
-            completion(result);
-            drop(parent);
+            super::dialogs::complete_after_release(parent, result, completion);
         })?;
     Ok(super::dialogs::DialogHandle::from_cancel(Arc::new(
         move || state.cancel(),

@@ -56,8 +56,11 @@ Step { cargo fmt @pkgs -- --check }
 Step { cargo clippy --locked --workspace --all-targets -- -D warnings }
 $threads = if ($env:RUST_TEST_THREADS) { $env:RUST_TEST_THREADS } else { '4' }
 Step { cargo test --locked --workspace -- "--test-threads=$threads" }
-Step { cargo build --locked --release -p nativehtmlkit-host }
+# Release build with --remap-path-prefix and /PDBALTPATH (no local path in the binary, FR-R-06);
+# the host embeds its source identity, which staging compares with this checkout (FR-R-04).
+Step { Invoke-Python scripts/release-local.py --build }
 Step { .\target\release\nativehtmlkit-host.exe --version }
+Step { .\target\release\nativehtmlkit-host.exe --version --verbose }
 # An existing same-version stage with a different host is refused; NHK_RESTAGE=1 replaces it.
 $stageArgs = @('--stage-only'); if ($env:NHK_RESTAGE) { $stageArgs += '--restage' }
 Step { Invoke-Python scripts/release-local.py @stageArgs }

@@ -133,6 +133,14 @@ fn depends_on_font_metrics(styles: &style::data::ElementStyles) -> bool {
             })
 }
 
+/// Whether an element's primary or pseudo-element style resolved a viewport-relative length
+/// (Stylo `USES_VIEWPORT_UNITS`, also through a container query). Descendants that inherit such
+/// a value are recascaded by the traversal when the parent's style changes.
+fn uses_viewport_units(styles: &style::data::ElementStyles) -> bool {
+    styles.get_primary().is_some()
+        && styles.viewport_unit_usage() != style::data::ViewportUnitUsage::None
+}
+
 /// Whether a stylesheet or `style` attribute text uses an `lh` or `rlh` unit (a number directly
 /// followed by the unit and not by further identifier characters).
 fn has_lh_unit(text: &str) -> bool {
@@ -193,6 +201,9 @@ pub struct StyleBridge {
     last_inputs: RevisionInputs,
     /// The previous pass failed after touching element data: the next pass restyles everything.
     poisoned: bool,
+    /// The viewport size changed in [`Self::update_environment`]: the next pass restyles every
+    /// element whose computed values were resolved against the viewport (NHK-CROSS-0005).
+    viewport_units_pending: bool,
     fail_next: Option<Code>,
     /// Unlisted presentational attributes already reported for this document.
     reported_hints: std::collections::HashSet<&'static str>,
@@ -250,6 +261,7 @@ impl StyleBridge {
             initial,
             last_inputs: RevisionInputs::default(),
             poisoned: false,
+            viewport_units_pending: false,
             fail_next: None,
             reported_hints: Default::default(),
             anim: AnimationEngine::default(),
@@ -258,8 +270,12 @@ impl StyleBridge {
     }
 
     /// Update the Stylo device without throwing away author/UA sheets, sidecars, font
-    /// metrics or running animations. Environment revisions are already a whole-document
-    /// restyle in `restyle_with`, so rebuilding the bridge is unnecessary.
+    /// metrics or running animations. Media-query results are re-evaluated here (changed
+    /// origins are rebuilt by the next pass); a viewport size change additionally restyles,
+    /// in the next pass, every element whose computed values use viewport-relative units
+    /// (vh/vw/vmin/vmax and their s/l/d variants, also inside calc() and on pseudo-elements;
+    /// NHK-CROSS-0005). The pipeline calls [`Self::restyle`], which keeps the environment
+    /// epoch of the previous pass, so this is the only resize invalidation.
     ///
     /// The two read guards are held only across Stylo's synchronous media-query
     /// invalidation; no application callbacks occur under either guard.
@@ -285,9 +301,13 @@ impl StyleBridge {
         // cascade data must be rebuilt by the next `flush`, or rules guarded by
         // `prefers-reduced-motion`, `prefers-color-scheme` or width queries keep
         // their old applicability.
+        let old = self.stylist.device().au_viewport_size();
         let changed = self.stylist.set_device(device, &guards);
         if !changed.is_empty() {
             self.stylist.force_stylesheet_origins_dirty(changed);
+        }
+        if self.stylist.device().au_viewport_size() != old {
+            self.viewport_units_pending = true;
         }
     }
 
@@ -620,7 +640,8 @@ impl StyleBridge {
         // those the engine flagged DEPENDS_ON_*_FONT_METRICS are restyled, exactly once (T037).
         let full = self.poisoned || inputs.environment != self.last_inputs.environment;
         let font_changed = inputs.font != self.last_inputs.font;
-        if (full || font_changed) && self.snapshot.epoch != 0 {
+        let viewport_changed = std::mem::take(&mut self.viewport_units_pending);
+        if (full || font_changed || viewport_changed) && self.snapshot.epoch != 0 {
             let arena = doc.arena();
             let mut flagged = vec![];
             for i in 0..arena.slot_count() {
@@ -631,7 +652,8 @@ impl StyleBridge {
                     if full {
                         sc.clear_data();
                     } else if let Some(d) = sc.borrow_data()
-                        && depends_on_font_metrics(&d.styles)
+                        && ((font_changed && depends_on_font_metrics(&d.styles))
+                            || (viewport_changed && uses_viewport_units(&d.styles)))
                     {
                         flagged.push(id);
                     }

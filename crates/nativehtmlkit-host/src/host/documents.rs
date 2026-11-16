@@ -217,9 +217,79 @@ impl Host {
     }
 
     fn load_document(&mut self, request: LoadDocument) -> Result<Value, RpcError> {
+        self.check_load_target(&request.window_id)?;
+        let resolved = resolve_load(
+            request.html,
+            request.path,
+            request.asset_root,
+            &self.config.backend.cwd,
+        )?;
+        self.install_document(&request.window_id, resolved)
+    }
+
+    /// CORE-A-14: `document.load` with a `path` or `asset_root` resolves and reads files on a
+    /// worker thread, so a stalled (network) file system cannot freeze the owner thread (input,
+    /// IPC, the force-quit shortcut). The reply follows when the read finishes; other requests
+    /// are answered meanwhile. Inline-HTML loads stay synchronous. Returns `Ok(None)` when the
+    /// reply is deferred.
+    pub(super) fn start_document_load(
+        &mut self,
+        params: Value,
+        reply: Option<Reply>,
+    ) -> Result<Option<Value>, RpcError> {
+        let request: LoadDocument = decode(params)?;
+        if request.path.is_none() && request.asset_root.is_none() {
+            return self.load_document(request).map(Some);
+        }
+        self.check_load_target(&request.window_id)?;
+        if self.jobs.len() + self.transfers.len() >= protocol::MAX_PENDING {
+            return Err(RpcError::busy("Too many pending host operations"));
+        }
+        let id = self.next_job;
+        self.next_job += 1;
+        let sender = self.job_tx.clone();
+        let wake = self.wake.clone();
+        let cwd = self.config.backend.cwd.clone();
+        let window_id = request.window_id.clone();
+        std::thread::Builder::new()
+            .name("nativehtmlkit-document-read".into())
+            .spawn(move || {
+                let value = resolve_load(request.html, request.path, request.asset_root, &cwd)
+                    .map(Resolved::into_value);
+                let _ = sender.send(JobResult { id, value });
+                wake();
+            })
+            .map_err(|e| RpcError::unavailable(format!("Start document read: {e}")))?;
+        self.jobs.insert(
+            id,
+            PendingJob {
+                reply,
+                // Not tied to the window: a stalled read must not hold a window close either.
+                parent: None,
+                kind: JobKind::DocumentLoad { window_id },
+                cancelled: false,
+                dialog: None,
+            },
+        );
+        Ok(None)
+    }
+
+    /// Install the document of a finished worker read (CORE-A-14). The window is checked again:
+    /// it may have closed, or the document limit filled, while the read was pending.
+    pub(super) fn finish_document_load(
+        &mut self,
+        window_id: &str,
+        value: Result<Value, RpcError>,
+    ) -> Result<Value, RpcError> {
+        let resolved = Resolved::from_value(value?)?;
+        self.check_load_target(window_id)?;
+        self.install_document(window_id, resolved)
+    }
+
+    fn check_load_target(&self, window_id: &str) -> Result<(), RpcError> {
         let window = self
             .windows
-            .get(&request.window_id)
+            .get(window_id)
             .ok_or_else(|| RpcError::closed("Window does not exist"))?;
         if window.closing {
             return Err(RpcError::closed("Window is closing"));
@@ -236,6 +306,19 @@ impl Host {
                 "At most 16 live documents are admitted per host",
             ));
         }
+        Ok(())
+    }
+
+    fn install_document(&mut self, window_id: &str, resolved: Resolved) -> Result<Value, RpcError> {
+        let Resolved {
+            html,
+            source,
+            asset_root,
+        } = resolved;
+        let window = self
+            .windows
+            .get(window_id)
+            .ok_or_else(|| RpcError::closed("Window does not exist"))?;
         let (width, height, scale) =
             window
                 .native
@@ -248,32 +331,6 @@ impl Host {
                         native.window.scale_factor(),
                     )
                 });
-        let cwd = &self.config.backend.cwd;
-        let (html, source, default_root) = match (request.html, request.path) {
-            (Some(html), None) => {
-                if html.len() > MAX_HTML_BYTES {
-                    return Err(RpcError::busy("HTML source exceeds 1 MiB"));
-                }
-                (html, None, None)
-            }
-            (None, Some(path)) => {
-                let path = canonical_path(&path, cwd)?;
-                let html = read_html(&path)?;
-                let base = path.parent().map(Path::to_owned);
-                (html, Some(path), base)
-            }
-            _ => return Err(RpcError::invalid_params("Give exactly one of html or path")),
-        };
-        let asset_root = request
-            .asset_root
-            .as_deref()
-            .map(|path| canonical_path(path, cwd))
-            .transpose()?
-            .or(default_root);
-        if asset_root.as_ref().is_some_and(|root| !root.is_dir()) {
-            return Err(RpcError::invalid_params("asset_root must be a directory"));
-        }
-
         // The previous document stays installed until parsing, validation and
         // viewport setup all succeed. Existing user state survives a rejected load.
         let mut engine = Document::parse_hosted(&html, asset_root.as_deref(), width, height)?;
@@ -314,14 +371,78 @@ impl Host {
             source,
             asset_root,
         };
-        let result = document.describe(&request.window_id);
+        let result = document.describe(window_id);
         self.windows
-            .get_mut(&request.window_id)
+            .get_mut(window_id)
             .expect("window retained on owner thread")
             .document = Some(document);
-        self.refresh(&request.window_id);
+        self.refresh(window_id);
         Ok(result)
     }
+}
+
+/// The HTML source and roots of a `document.load`, after all file-system access.
+struct Resolved {
+    html: String,
+    source: Option<PathBuf>,
+    asset_root: Option<PathBuf>,
+}
+
+impl Resolved {
+    fn into_value(self) -> Value {
+        // Paths were checked to be Unicode by `canonical_path`.
+        let path = |p: Option<PathBuf>| p.and_then(|p| p.to_str().map(str::to_owned));
+        json!({"html":self.html,"source":path(self.source),"asset_root":path(self.asset_root)})
+    }
+    fn from_value(mut value: Value) -> Result<Self, RpcError> {
+        let path = |v: &Value| v.as_str().map(PathBuf::from);
+        Ok(Self {
+            source: path(&value["source"]),
+            asset_root: path(&value["asset_root"]),
+            html: match value["html"].take() {
+                Value::String(html) => html,
+                _ => return Err(RpcError::internal("document read result lost its HTML")),
+            },
+        })
+    }
+}
+
+/// Every file-system access of `document.load`: path resolution, the bounded read and the
+/// `asset_root` check (CORE-A-14: run on a worker when a path is involved).
+fn resolve_load(
+    html: Option<String>,
+    path: Option<PathBuf>,
+    asset_root: Option<PathBuf>,
+    cwd: &Path,
+) -> Result<Resolved, RpcError> {
+    let (html, source, default_root) = match (html, path) {
+        (Some(html), None) => {
+            if html.len() > MAX_HTML_BYTES {
+                return Err(RpcError::busy("HTML source exceeds 1 MiB"));
+            }
+            (html, None, None)
+        }
+        (None, Some(path)) => {
+            let path = canonical_path(&path, cwd)?;
+            let html = read_html(&path)?;
+            let base = path.parent().map(Path::to_owned);
+            (html, Some(path), base)
+        }
+        _ => return Err(RpcError::invalid_params("Give exactly one of html or path")),
+    };
+    let asset_root = asset_root
+        .as_deref()
+        .map(|path| canonical_path(path, cwd))
+        .transpose()?
+        .or(default_root);
+    if asset_root.as_ref().is_some_and(|root| !root.is_dir()) {
+        return Err(RpcError::invalid_params("asset_root must be a directory"));
+    }
+    Ok(Resolved {
+        html,
+        source,
+        asset_root,
+    })
 }
 
 fn check_document<'a>(

@@ -51,6 +51,12 @@ enum Command {
 }
 
 fn execute() -> Result<i32> {
+    // Additive to clap's `--version` (whose output is unchanged): the embedded source identity.
+    let args: Vec<_> = std::env::args_os().skip(1).collect();
+    if nativehtmlkit_host::build_info::wants_verbose_version(&args) {
+        println!("{}", nativehtmlkit_host::build_info::verbose_version());
+        return Ok(0);
+    }
     let cli = Cli::parse();
     // Set only before starting threads. These are explicit launcher choices,
     // never inferred silently from a missing desktop/service manager.

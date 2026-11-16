@@ -540,3 +540,64 @@ fn nested_container_queries_react_to_resize_and_mutation() {
     assert_eq!(r(&mut d, "x").3, 30.0);
     cold(&mut d, "cq mutation");
 }
+
+// ---------- viewport-relative units (NHK-CROSS-0005) ----------
+
+/// A window resize re-resolves every viewport-relative length (vh, vw, vmin, vmax, the
+/// small/large/dynamic variants, inside calc(), inherited through `font-size` and on a
+/// pseudo-element), not only those behind a media query; the incremental result equals the
+/// cold oracle after each resize.
+#[test]
+fn viewport_units_are_re_resolved_after_a_resize() {
+    let mut d = doc("<style>\
+         main{min-height:100vh}\
+         #s{max-height:calc(100vh - 170px);height:2000px;overflow:auto}\
+         #w{width:50vw;height:10vmin}\
+         #m{width:10vmax;height:20svh}\
+         #l{width:10lvw;height:10dvh}\
+         #f{font-size:5vh;height:2em}\
+         #f>span{display:block;font-size:inherit;height:1em}\
+         #p::before{content:'';display:block;width:25vw;height:5vh}\
+         </style>\
+         <main id=main><div id=s></div><div id=w></div><div id=m></div><div id=l></div>\
+         <div id=f><span id=fi></span></div><div id=p></div></main>");
+    let check = |d: &mut Document, w: f64, h: f64, what: &str| {
+        assert!(
+            (r(d, "main").3 - h).abs() < 0.51 || r(d, "main").3 > h,
+            "{what}: main min-height"
+        );
+        near(
+            r(d, "s"),
+            (0.0, 0.0, w, h - 170.0),
+            &format!("{what}: calc(100vh - 170px)"),
+        );
+        assert!((r(d, "w").2 - w / 2.0).abs() < 0.51, "{what}: 50vw");
+        assert!(
+            (r(d, "w").3 - w.min(h) / 10.0).abs() < 0.51,
+            "{what}: 10vmin"
+        );
+        assert!(
+            (r(d, "m").2 - w.max(h) / 10.0).abs() < 0.51,
+            "{what}: 10vmax"
+        );
+        assert!((r(d, "m").3 - h / 5.0).abs() < 0.51, "{what}: 20svh");
+        assert!((r(d, "l").2 - w / 10.0).abs() < 0.51, "{what}: 10lvw");
+        assert!((r(d, "l").3 - h / 10.0).abs() < 0.51, "{what}: 10dvh");
+        assert!((r(d, "f").3 - h / 10.0).abs() < 0.51, "{what}: 2em of 5vh");
+        assert!(
+            (r(d, "fi").3 - h / 20.0).abs() < 0.51,
+            "{what}: inherited 5vh"
+        );
+        assert!(
+            (r(d, "p").3 - h / 20.0).abs() < 0.51,
+            "{what}: ::before 5vh"
+        );
+    };
+    check(&mut d, 800.0, 600.0, "initial");
+    for (w, h) in [(800_u32, 450_u32), (500, 450), (1000, 700)] {
+        d.set_viewport(w, h, 1.0).unwrap();
+        d.render(w, h, 1.0).unwrap();
+        check(&mut d, f64::from(w), f64::from(h), &format!("{w}x{h}"));
+        cold(&mut d, &format!("viewport units at {w}x{h}"));
+    }
+}

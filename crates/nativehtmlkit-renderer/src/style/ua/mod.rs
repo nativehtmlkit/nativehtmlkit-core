@@ -1,7 +1,7 @@
 //! owner: 006-style-engine — created by 001 slice (R-28)
 //!
 //! The UA stylesheet subset for the slice (T040; research R-16; OD-26): `html.css`, derived
-//! from the WHATWG HTML Rendering section @6d7788b under CC-BY-4.0 (pending owner approval).
+//! from the WHATWG HTML Rendering section @6d7788b under CC-BY-4.0 (OD-26, approved by the owner on 2026-11-15).
 //! Provenance (source, SHA, licence, rules taken, modifications): `ua/PROVENANCE.md` and the
 //! `UA-SUBSET` entry of `engine/provenance.toml`. Embedded at build time.
 

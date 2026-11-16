@@ -18,8 +18,9 @@ pub const BUTTONS: [&str; 4] = ["Copy", "Paste", "Open file", "Quit"];
 fn font() -> &'static Font {
     static FONT: OnceLock<Font> = OnceLock::new();
     FONT.get_or_init(|| {
+        // The renderer's pinned last-resort Noto Sans (CORE-B-13: one embedded copy, not two).
         Font::from_bytes(
-            include_bytes!("../assets/NotoSans-Regular.ttf") as &[u8],
+            nativehtmlkit_assets::fonts::last_resort::BYTES,
             FontSettings::default(),
         )
         .expect("bundled font is valid")

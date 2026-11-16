@@ -231,19 +231,27 @@ impl Host {
                     .get("window_id")
                     .and_then(Value::as_str)
                     .map(str::to_owned);
-                let result = self.dispatch_document(method, params);
+                let result = if method == "document.load" {
+                    self.start_document_load(params, reply.clone())
+                } else {
+                    self.dispatch_document(method, params).map(Some)
+                };
                 if let Some(id) = window_id {
                     self.prune_document_work(&id);
                     self.document_changed(&id, event_loop);
                 }
-                result?
+                match result? {
+                    Some(value) => value,
+                    // CORE-A-14: answered when the worker read finishes.
+                    None => return Ok(None),
+                }
             }
             "host.capabilities" => self.capabilities(),
             "host.diagnostics" => {
                 json!({"phase":self.lifecycle.phase(),"windows":self.windows.keys().collect::<Vec<_>>(),
                 "pending_jobs":self.jobs.len(),"pending_transfers":self.transfers.len(),"pid":std::process::id(),
                 "backend_pid":self.backend.as_ref().map(Backend::id),"containment":platform::containment_description(),
-                "logging":crate::logging::diagnostics()})
+                "logging":crate::logging::diagnostics(),"dropped_notifications":self.dropped_notifications})
             }
             "app.ready" => {
                 if self.windows.is_empty() {
@@ -449,10 +457,25 @@ impl Host {
         } else {
             let event_loop =
                 event_loop.ok_or_else(|| RpcError::unavailable("Native surfaces are not ready"))?;
+            // Wayland: the compositor positions the window; keep its size within every output
+            // (Windows fits the frame to the monitor work area after creation, below).
+            #[cfg(not(target_os = "windows"))]
+            let (surface_width, surface_height) = {
+                let outputs: Vec<(u32, u32, f64)> = event_loop
+                    .available_monitors()
+                    .filter_map(|m| {
+                        let size = m.current_video_mode()?.size();
+                        Some((size.width, size.height, m.scale_factor()))
+                    })
+                    .collect();
+                placement::clamp_logical_size((request.width, request.height), limits.min, &outputs)
+            };
+            #[cfg(target_os = "windows")]
+            let (surface_width, surface_height) = (request.width, request.height);
             let mut attributes = WindowAttributes::default()
                 .with_title(request.title.clone())
                 .with_window_icon(Some(self.icon.clone()))
-                .with_surface_size(LogicalSize::new(request.width, request.height))
+                .with_surface_size(LogicalSize::new(surface_width, surface_height))
                 .with_resizable(request.resizable)
                 .with_decorations(request.decorations)
                 .with_visible(false);
@@ -471,6 +494,17 @@ impl Host {
                 .create_window(attributes)
                 .map_err(|e| RpcError::unavailable(format!("Create native window: {e}")))?
                 .into();
+            #[cfg(target_os = "windows")]
+            if let Some(frame) = placement::fit_new_window(window.as_ref()) {
+                tracing::debug!(
+                    window = %id,
+                    left = frame.left,
+                    top = frame.top,
+                    width = frame.width(),
+                    height = frame.height(),
+                    "new window fitted to the monitor work area"
+                );
+            }
             // One presentation context per host. On Wayland each context binds
             // a registry and wl_shm (v1 has no destroy request), so a context per
             // window grew memory with every window created.
@@ -485,6 +519,10 @@ impl Host {
             let surface = Surface::new(context, window.clone())
                 .map_err(|e| RpcError::unavailable(format!("Create presentation surface: {e}")))?;
             let size = window.surface_size();
+            // NHK-CROSS-0006: a backend window waits (bounded) for its document before its
+            // first presentation; the standalone probe and the failure page show at once.
+            let reveal_deadline = (!self.standalone && self.lifecycle.phase() != Phase::Failed)
+                .then(|| Instant::now() + FIRST_PRESENT_GRACE);
             let accessibility = NativeAccessibility::new(
                 &id,
                 window.as_ref(),
@@ -507,6 +545,7 @@ impl Host {
                 ime_enabled: false,
                 drag_selecting: false,
                 presented: false,
+                reveal_deadline,
                 resized_at: None,
                 pointer: (0.0, 0.0),
                 last_titlebar_press: None,
@@ -519,8 +558,10 @@ impl Host {
                 incoming_drop: None,
             };
             native::update_ime(&probe, &mut native);
-            native.window.set_visible(request.visible);
-            native.window.request_redraw();
+            if native.reveal_deadline.is_none() {
+                native.window.set_visible(request.visible);
+                native.window.request_redraw();
+            }
             Some(native)
         };
         self.windows.insert(
@@ -635,8 +676,12 @@ impl Host {
                     .window
                     .request_surface_size(LogicalSize::new(width, height).into());
             }
+            // Before the first presentation the requested visibility is applied when the
+            // window is revealed (NHK-CROSS-0006).
             if let Some(visible) = request.visible {
-                native.window.set_visible(visible);
+                if native.reveal_deadline.is_none() {
+                    native.window.set_visible(visible);
+                }
             }
             if let Some(resizable) = request.resizable {
                 native.window.set_resizable(resizable);

@@ -28,16 +28,14 @@ not a vendored copy of accesskit_winit.
 
 ## Bundled font
 
-The host binary embeds NotoSans-Regular.ttf (SIL Open Font License 1.1) twice,
-as two byte-identical copies:
-
-- `crates/nativehtmlkit-assets/assets/last-resort/NotoSans-Regular.ttf`: the
-  renderer's last-resort font, used for any HTML/CSS text no other font covers.
-  Notice: `crates/nativehtmlkit-assets/assets/last-resort/OFL.txt` (with
-  `PROVENANCE.md` and `SHA256SUMS` beside it).
-- `crates/nativehtmlkit-host/assets/NotoSans-Regular.ttf`: the font of the
-  `probe` subcommand's diagnostic text stack (fontdue). Notice:
-  `crates/nativehtmlkit-host/assets/FONT-LICENSE.txt`.
+The host binary embeds NotoSans-Regular.ttf (SIL Open Font License 1.1) once:
+`crates/nativehtmlkit-assets/assets/last-resort/NotoSans-Regular.ttf`, the
+renderer's last-resort font, used for any HTML/CSS text no other font covers and
+(since Core 1.0.3) also for the `probe` subcommand's diagnostic text stack
+(fontdue), which until 1.0.2 embedded a second, byte-identical copy from
+`crates/nativehtmlkit-host/assets/`. Notice:
+`crates/nativehtmlkit-assets/assets/last-resort/OFL.txt` (with `PROVENANCE.md`
+and `SHA256SUMS` beside it).
 
 Inclusion does not imply coverage or shaping for every writing system. Release
 archives ship the OFL as `licenses/NotoSans-OFL.txt`.
@@ -90,8 +88,7 @@ notice (tests only, not in the binary).
 
 **Owner decision OD-26 (approved 2026-11-15):** the project owner approved CC-BY-4.0 for the
 UA stylesheets, which are compiled into every host binary; the release notice records the
-approval. In-source comments in the stylesheet files still carry the earlier "pending" wording
-until the next Core version (changing them would change the qualified 1.0.2 binary). The example's `@font-face` font has its own adjacent FONT-LICENSE.txt.
+approval, and since Core 1.0.3 the in-source comments of the stylesheet files state it too. The example's `@font-face` font has its own adjacent FONT-LICENSE.txt.
 
 The root MIT license describes original UI4ME/NativeHTMLKit code; it does not relicense the
 carried Stylo, Taffy, font or other third-party source/data. The source of the

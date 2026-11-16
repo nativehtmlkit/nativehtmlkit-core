@@ -554,8 +554,8 @@ fn live_regions_map_implicit_and_explicit_politeness() {
 }
 
 /// Core 1.0 C08 (found on KDE with Orca): a dropdown combobox must expose its options natively,
-/// with the selected one as selected child and active descendant, while its label and value stay
-/// distinct. A leaf combobox gave AT-SPI no selected child, so Orca spoke the label twice and
+/// with the selected one as selected child, while its label and value stay distinct. It has no
+/// active descendant: AccessKit would move platform focus onto the option (NHK-CROSS-0009). A leaf combobox gave AT-SPI no selected child, so Orca spoke the label twice and
 /// `Selection.select_child` had nothing to act on. An assistive Click on an option (the request
 /// the AT-SPI/UIA selection interfaces send) picks it with `input` and `change`.
 #[test]
@@ -585,7 +585,7 @@ fn dropdown_exposes_selected_option_and_assistive_option_pick() {
             (Role::ListBoxOption, "Gone".to_string(), Some(false)),
         ]
     );
-    assert_eq!(combo.relations.active_descendant, Some(options[1].id));
+    assert_eq!(combo.relations.active_descendant, None);
     assert!(
         options.iter().all(|o| o.bounds.is_none()),
         "boxless options must not shadow hit tests"
@@ -608,7 +608,11 @@ fn dropdown_exposes_selected_option_and_assistive_option_pick() {
     let combo = by_html_id(&t, "p");
     assert_eq!(combo.name, "Priority", "label stays distinct from value");
     assert_eq!(combo.value.as_deref(), Some("Normal"));
-    assert_eq!(combo.relations.active_descendant, Some(combo.children[0]));
+    assert_eq!(combo.relations.active_descendant, None);
+    assert_eq!(
+        t.get(combo.children[0]).unwrap().states.selected,
+        Some(true)
+    );
 
     // A disabled option is refused without changing the selection.
     let gone = node_of_key(combo.children[2]);

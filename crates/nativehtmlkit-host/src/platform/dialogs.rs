@@ -135,15 +135,36 @@ pub fn start(
                 native::run(&parent, captured, &options, &worker_state)
             }))
             .unwrap_or_else(|_| Err(anyhow::anyhow!("native dialog worker panicked")));
-            completion(result);
-            drop(parent);
+            complete_after_release(parent, result, completion);
         })?;
     Ok(DialogHandle::from_cancel(Arc::new(move || state.cancel())))
+}
+
+/// CORE-A-15: release a worker's window reference *before* reporting completion. The event
+/// loop may remove the window as soon as it sees the completion; dropping afterwards could make
+/// this worker the last owner, tearing the native window (a Wayland surface) down off the
+/// event-loop thread.
+pub(crate) fn complete_after_release<P, R>(parent: P, result: R, completion: impl FnOnce(R)) {
+    drop(parent);
+    completion(result);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// CORE-A-15: when the completion runs, the worker no longer holds the parent.
+    #[test]
+    fn worker_releases_the_parent_before_completion() {
+        let owner = Arc::new(());
+        let worker = owner.clone();
+        let probe = owner.clone();
+        complete_after_release(worker, 7, move |value| {
+            assert_eq!(value, 7);
+            assert_eq!(Arc::strong_count(&probe), 2, "worker still held the parent");
+        });
+        assert_eq!(Arc::strong_count(&owner), 1);
+    }
     #[test]
     fn rejects_filter_globs_and_filename_paths() {
         let mut options = DialogOptions {

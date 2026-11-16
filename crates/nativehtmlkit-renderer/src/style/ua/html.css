@@ -9,7 +9,7 @@
  *   snapshot whatwg/html @6d7788bc56a4b39d955a9a7fdb501c7c7d27999a
  * Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). Licensed under the Creative Commons
  * Attribution 4.0 International License (CC-BY-4.0), https://creativecommons.org/licenses/by/4.0/
- * (OD-26 default, pending owner approval). Changes: rules the profile excludes or the engine
+ * (OD-26, approved by the project owner on 2026-11-15). Changes: rules the profile excludes or the engine
  * cannot parse are left out, `:heading` is written as h1–h6, the attribute-driven "presentational
  * hint" blocks live in hints.rs, the quirks-mode blocks in quirks.css and the form-control block
  * in forms.css; see ua/PROVENANCE.md (M1–M14) and engine/provenance.toml entry UA-SUBSET.

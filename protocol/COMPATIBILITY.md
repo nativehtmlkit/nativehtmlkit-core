@@ -5,6 +5,11 @@ versioned independently of the protocol version.
 
 ## Protocol version 1
 
+- **Status: public-stable since host 1.0.3** (2026-11-16). Every rule below is binding
+  for all later 1.x hosts; the behaviours host 1.0.3 introduced (protocol `README.md` §3, §7, §8,
+  §10: id-correlated `document.load` responses, output backpressure, deferred first presentation,
+  initial placement, the Windows bitmap directory, backend-output relay) are part of the stable
+  contract.
 - `protocol_version` is the integer in `host.hello`. Hosts in the 1.x line speak exactly `1`.
 - **Never changed within v1:** framing (§2 of `README.md`), envelope rules (§3), authentication and
   launch variables (`UI4ME_ENDPOINT`, `UI4ME_TOKEN`, `UI4ME_APP_ID`, `UI4ME_PROTOCOL_VERSION`),

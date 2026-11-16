@@ -236,6 +236,9 @@
       },
       "ok": "object"
     },
+    "document.load.asset_root_not_directory": {
+      "error": -32602
+    },
     "document.load.both_sources": {
       "error": -32602
     },
@@ -260,6 +263,28 @@
     },
     "document.load.oversize_html": {
       "error": -32005
+    },
+    "document.load.path_directory": {
+      "error": -32602
+    },
+    "document.load.path_missing": {
+      "error": -32002
+    },
+    "document.load.path_ok": {
+      "booleans": {
+        "loaded": true,
+        "pending_resources": false
+      },
+      "members": {
+        "asset_root": "string",
+        "document_id": "string",
+        "loaded": "boolean",
+        "pending_resources": "boolean",
+        "renderer": "string",
+        "source": "string",
+        "window_id": "string"
+      },
+      "ok": "object"
     },
     "document.load.unknown_member": {
       "error": -32602
@@ -504,6 +529,7 @@
       "members": {
         "backend_pid": "number",
         "containment": "string",
+        "dropped_notifications": "number",
         "logging": "object",
         "pending_jobs": "number",
         "pending_transfers": "number",
@@ -517,6 +543,7 @@
       "members": {
         "backend_pid": "number",
         "containment": "string",
+        "dropped_notifications": "number",
         "logging": "object",
         "pending_jobs": "number",
         "pending_transfers": "number",
@@ -2088,7 +2115,7 @@
       "error": -32602
     }
   },
-  "host_version": "1.0.2",
+  "host_version": "1.0.3",
   "mode": "headless; native GUI behavior is qualified separately",
   "protocol_version": 1,
   "schema": 1

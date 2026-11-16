@@ -151,9 +151,13 @@ host executable name (`nativehtmlkit-host`, formerly `ui4me-host`) to AT-SPI cli
 identity API when one is available.
 
 The `node.rs` addition emits the existing AT-SPI `ActiveDescendantChanged`
-event when an AccessKit container's active descendant changes. The renderer
-now supplies the selected option as a combobox's active descendant while
-retaining separate accessible label and value. The adapter already exposes
+event when an AccessKit container's active descendant changes. (Core 1.0.3,
+NHK-CROSS-0009: the renderer no longer gives a drop-down combobox an active
+descendant, because AccessKit moves platform focus to a focused node's active
+descendant and AT-SPI then reported the option, not the combo box, as focused;
+it publishes the options inside a list-box child of the combo box instead. List
+boxes keep the selected option as active descendant. The host test below still
+exercises the adapter event with a hand-built tree.) The adapter already exposes
 selected options through its Selection interface; it must also report this
 semantic navigation change. The host test
 `atspi_combo_exposes_selected_option_and_active_descendant_changes` exercises

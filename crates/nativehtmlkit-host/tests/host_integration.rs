@@ -386,6 +386,68 @@ fn trace_records_rpc_and_event_metadata_without_values() {
     }
 }
 
+/// NHK-CROSS-0007: backend stdout/stderr (application output and the fatal error text) is
+/// relayed at every diagnostics level, including `off`; `off` silences only the host's own
+/// informational records. The launch token stays redacted at every level.
+#[test]
+fn backend_output_and_fatal_error_survive_every_diagnostics_level() {
+    let harness = Harness::new();
+    for level in ["off", "normal", "debug", "trace"] {
+        let session = format!("nhk-it-relay.{level}.{}", std::process::id());
+        let (evidence, output) =
+            harness.run_with_diagnostics("output_then_panic", 1, Some((level, &session)));
+        let token = evidence["token"].as_str().unwrap();
+        assert!(!output.contains(token), "launch token leaked at {level}");
+        let all = records(&output);
+        let relayed = |stream: &str, needle: &str| {
+            all.iter().any(|r| {
+                r["fields"]["source"] == "backend"
+                    && r["fields"]["stream"] == stream
+                    && r["fields"]["text"]
+                        .as_str()
+                        .is_some_and(|text| text.contains(needle))
+            })
+        };
+        assert!(
+            relayed("stdout", RELAY_STDOUT),
+            "stdout at {level}:\n{output}"
+        );
+        assert!(
+            relayed("stderr", RELAY_STDERR),
+            "stderr at {level}:\n{output}"
+        );
+        assert!(
+            relayed("stderr", RELAY_FATAL),
+            "fatal text at {level}:\n{output}"
+        );
+        assert!(
+            relayed("stderr", "[redacted-token]"),
+            "token not redacted at {level}:\n{output}"
+        );
+        assert!(output.contains("application failed"), "{level}:\n{output}");
+        for record in &all {
+            assert_eq!(
+                record["diagnostic_session_id"],
+                session.as_str(),
+                "{record}"
+            );
+        }
+        if level == "off" {
+            // Only error records and the relayed backend output remain at `off`.
+            for record in &all {
+                assert!(
+                    record["level"] == "ERROR" || record["fields"]["source"] == "backend",
+                    "host record at off: {record}"
+                );
+            }
+        }
+    }
+}
+
+const RELAY_STDOUT: &str = "nhk-0007-stdout-line";
+const RELAY_STDERR: &str = "nhk-0007-stderr-line";
+const RELAY_FATAL: &str = "nhk-0007-fatal-error";
+
 struct Client {
     stream: NativeStream,
     next_id: u64,
@@ -795,6 +857,15 @@ fn backend_fixture() {
             client.stream.shutdown();
             std::thread::sleep(Duration::from_secs(30));
             panic!("host failed to terminate disconnected backend");
+        }
+        "output_then_panic" => {
+            client.start(1);
+            let token = std::env::var("UI4ME_TOKEN").unwrap();
+            checkpoint_with(&scenario, json!({"token": token}));
+            println!("{RELAY_STDOUT}");
+            std::io::stdout().flush().unwrap();
+            eprintln!("{RELAY_STDERR} token={token}");
+            panic!("{RELAY_FATAL}");
         }
         "crash" => {
             client.start(1);

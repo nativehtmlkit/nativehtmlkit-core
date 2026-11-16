@@ -12,10 +12,25 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+/// [`Server::notify_droppable`] refused a notification because the peer is not reading and
+/// the queue is above the notification share of its bound (CORE-A-13).
+#[derive(Debug, thiserror::Error)]
+#[error("peer output queue is under backpressure")]
+pub struct Backpressure;
+
+/// [`Server::reply`] to a connection that no longer exists or is already ending (FR-R-14).
+#[derive(Debug, thiserror::Error)]
+#[error("connection is closed")]
+pub struct ConnectionClosed;
+
 const MAX_CONNECTIONS: usize = 8;
 const MAX_EVENTS: usize = 256;
 const MAX_OUTBOUND_MESSAGES: usize = 128;
 const MAX_OUTBOUND_BYTES: usize = 8 * 1024 * 1024;
+/// CORE-A-13: droppable notifications are refused above these queue levels, so the remaining
+/// quarter of the bound stays available for replies and lifecycle messages.
+const NOTIFY_OUTBOUND_MESSAGES: usize = MAX_OUTBOUND_MESSAGES * 3 / 4;
+const NOTIFY_OUTBOUND_BYTES: usize = MAX_OUTBOUND_BYTES * 3 / 4;
 const MAX_INBOUND_BYTES: usize = 8 * 1024 * 1024;
 
 #[derive(Debug)]
@@ -65,6 +80,8 @@ impl Incoming {
 struct Connection {
     outgoing: SyncSender<Vec<u8>>,
     queued_bytes: Arc<AtomicUsize>,
+    /// Messages queued and not yet written (CORE-A-13 backpressure).
+    queued_messages: Arc<AtomicUsize>,
     control: NativeStream,
     stopped: Arc<AtomicBool>,
 }
@@ -191,7 +208,9 @@ impl Server {
         })
     }
 
-    /// Queue without waiting for the client to read. The GUI can call this.
+    /// Queue without waiting for the client to read. The GUI can call this. An error that is
+    /// [`ConnectionClosed`] means the peer is already gone (its `Disconnected` event reports
+    /// that); any other error means the peer cannot receive more bounded output.
     pub fn reply(&self, connection: u64, value: Value) -> Result<()> {
         let bytes = serde_json::to_vec(&value)?;
         if bytes.len() > MAX_FRAME_BYTES {
@@ -202,9 +221,11 @@ impl Server {
             .connections
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        let peer = map.get(&connection).context("connection is closed")?;
+        let Some(peer) = map.get(&connection) else {
+            return Err(ConnectionClosed.into());
+        };
         if peer.stopped.load(Ordering::Acquire) {
-            bail!("connection is closing");
+            return Err(ConnectionClosed.into());
         }
         let length = bytes.len() + 4;
         let previous = peer.queued_bytes.fetch_add(length, Ordering::AcqRel);
@@ -212,13 +233,40 @@ impl Server {
             peer.queued_bytes.fetch_sub(length, Ordering::AcqRel);
             bail!("connection outgoing byte limit exceeded");
         }
+        peer.queued_messages.fetch_add(1, Ordering::AcqRel);
         if let Err(error) = peer.outgoing.try_send(bytes) {
+            peer.queued_messages.fetch_sub(1, Ordering::AcqRel);
             peer.queued_bytes.fetch_sub(length, Ordering::AcqRel);
+            if matches!(error, mpsc::TrySendError::Disconnected(_)) {
+                return Err(ConnectionClosed.into());
+            }
             return Err(anyhow::anyhow!(
                 "connection outgoing queue unavailable: {error}"
             ));
         }
         Ok(())
+    }
+
+    /// [`Self::reply`] for a notification the host may drop: refused with [`Backpressure`]
+    /// while the peer's queue is above three quarters of its message or byte bound, so a
+    /// temporarily busy backend loses input events instead of the session (CORE-A-13).
+    pub fn notify_droppable(&self, connection: u64, value: Value) -> Result<()> {
+        {
+            let map = self
+                .shared
+                .connections
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let Some(peer) = map.get(&connection) else {
+                return Err(ConnectionClosed.into());
+            };
+            if peer.queued_messages.load(Ordering::Acquire) >= NOTIFY_OUTBOUND_MESSAGES
+                || peer.queued_bytes.load(Ordering::Acquire) >= NOTIFY_OUTBOUND_BYTES
+            {
+                return Err(Backpressure.into());
+            }
+        }
+        self.reply(connection, value)
     }
 
     pub fn disconnect(&self, connection: u64) {
@@ -270,6 +318,7 @@ fn attach(shared: &Arc<Shared>, mut reader: NativeStream) -> Result<()> {
     let id = shared.next_id.fetch_add(1, Ordering::Relaxed);
     let stopped = Arc::new(AtomicBool::new(false));
     let queued_bytes = Arc::new(AtomicUsize::new(0));
+    let queued_messages = Arc::new(AtomicUsize::new(0));
     let (sender, receiver) = mpsc::sync_channel::<Vec<u8>>(MAX_OUTBOUND_MESSAGES);
     {
         let mut peers = shared.connections.lock().unwrap_or_else(|e| e.into_inner());
@@ -282,6 +331,7 @@ fn attach(shared: &Arc<Shared>, mut reader: NativeStream) -> Result<()> {
             Connection {
                 outgoing: sender,
                 queued_bytes: queued_bytes.clone(),
+                queued_messages: queued_messages.clone(),
                 control,
                 stopped: stopped.clone(),
             },
@@ -300,6 +350,7 @@ fn attach(shared: &Arc<Shared>, mut reader: NativeStream) -> Result<()> {
             while !write_state.stop.load(Ordering::Acquire) && !write_stop.load(Ordering::Acquire) {
                 match receiver.recv_timeout(Duration::from_millis(100)) {
                     Ok(bytes) => {
+                        queued_messages.fetch_sub(1, Ordering::AcqRel);
                         let result = writer
                             .set_timeout(Some(Duration::from_secs(10)))
                             .and_then(|_| writer.write_all(&(bytes.len() as u32).to_be_bytes()))
@@ -548,6 +599,80 @@ mod tests {
             )
             .unwrap();
         assert_eq!(client.join().unwrap()["result"], "pong");
+        server.close();
+    }
+
+    /// CORE-A-13: with a backend that does not read, droppable notifications are refused once
+    /// the queue holds three quarters of its bound, and replies still fit afterwards.
+    #[test]
+    fn droppable_notifications_leave_headroom_for_replies() {
+        let app = format!(
+            "org.nativehtmlkit.transport.pressure.{}",
+            std::process::id()
+        );
+        let lock = crate::platform::InstanceLock::acquire(&app).unwrap();
+        let mut server = Server::bind(&app, &lock.instance_key, Arc::new(|| {})).unwrap();
+        let _client = NativeStream::connect(&server.endpoint, Duration::from_secs(2)).unwrap();
+        let connection = match server
+            .incoming
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap()
+        {
+            TransportEvent::Connected(id) => id,
+            other => panic!("unexpected {other:?}"),
+        };
+        // 64 KiB events: the kernel socket buffer absorbs a few, then the queue fills.
+        let event = serde_json::json!({"jsonrpc":"2.0","method":"document.event","params":{"pad":"x".repeat(64 * 1024)}});
+        let mut sent = 0;
+        let refused = loop {
+            match server.notify_droppable(connection, event.clone()) {
+                Ok(()) => sent += 1,
+                Err(error) => break error,
+            }
+            assert!(sent < 10_000, "an unread peer never pushed back");
+        };
+        assert!(refused.is::<Backpressure>(), "{refused:#}");
+        for _ in 0..16 {
+            server
+                .reply(
+                    connection,
+                    serde_json::json!({"jsonrpc":"2.0","id":"r","result":{}}),
+                )
+                .expect("replies keep a reserved quarter of the bound");
+        }
+        assert!(server.is_connected(connection));
+        server.close();
+    }
+
+    /// FR-R-14: a reply to a closed connection is reported as [`ConnectionClosed`]; a reply that
+    /// exceeds the outbound bound of a live but unread connection is not.
+    #[test]
+    fn reply_errors_distinguish_a_closed_peer_from_an_output_overflow() {
+        let app = format!(
+            "org.nativehtmlkit.transport.classify.{}",
+            std::process::id()
+        );
+        let lock = crate::platform::InstanceLock::acquire(&app).unwrap();
+        let mut server = Server::bind(&app, &lock.instance_key, Arc::new(|| {})).unwrap();
+        let _client = NativeStream::connect(&server.endpoint, Duration::from_secs(2)).unwrap();
+        let connection = match server
+            .incoming
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap()
+        {
+            TransportEvent::Connected(id) => id,
+            other => panic!("unexpected {other:?}"),
+        };
+        let big = serde_json::json!({"payload": "x".repeat(MAX_FRAME_BYTES - 64)});
+        let overflow = (0..64)
+            .find_map(|_| server.reply(connection, big.clone()).err())
+            .expect("an unread peer must hit the outbound bound");
+        assert!(!overflow.is::<ConnectionClosed>(), "{overflow:#}");
+        server.disconnect(connection);
+        let closed = server.reply(connection, serde_json::json!({})).unwrap_err();
+        assert!(closed.is::<ConnectionClosed>(), "{closed:#}");
+        let unknown = server.reply(u64::MAX, serde_json::json!({})).unwrap_err();
+        assert!(unknown.is::<ConnectionClosed>(), "{unknown:#}");
         server.close();
     }
 

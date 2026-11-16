@@ -282,7 +282,9 @@ def match_arms(text: str, fn_regex: str) -> set[str]:
     fn_body = block(text, fn_regex)
     arms_body = block(fn_body, r"match\s+method\s*\{")
     arms: set[str] = set()
-    for m in re.finditer(r'((?:"[^"]+"\s*\|\s*)*"[^"]+")\s*=>', _top_level_text(arms_body)):
+    # FR-R-05: an arm may carry a guard (`"m" if cond =>`); the guard is matched lazily up to
+    # the first `=>`, so `==`, `>=` or `<=` inside it do not hide the arm.
+    for m in re.finditer(r'((?:"[^"]+"\s*\|\s*)*"[^"]+")\s*(?:if\b[\s\S]*?)?=>', _top_level_text(arms_body)):
         arms.update(re.findall(r'"([^"]+)"', m.group(1)))
     if not arms:
         raise SystemExit(f"source changed: no dispatch arms found for {fn_regex!r}")
@@ -300,8 +302,20 @@ def check_dispatch_arms(src: dict[str, str]) -> None:
         delegated = {m for m in main if m.startswith(prefix)}
         if arms != delegated:
             problems.append(f"{name} arms {sorted(arms)} != requests.rs delegated {sorted(delegated)}")
-    hub = strip_comments((HOST / "host/mod.rs").read_text(encoding="utf-8"))
-    special = {m for m in ("host.hello", "app.activate") if f'request.method == "{m}"' in hub}
+    # FR-R-05: every method-name comparison outside the match arms (`request.method == "m"`,
+    # `"m" == method`, `!=`, `matches!(request.method.as_str(), "a" | "b")`) in any host
+    # source file is a dispatch path too; collect them all instead of probing known names.
+    special: set[str] = set()
+    for path in sorted((HOST).rglob("*.rs")):
+        text = strip_comments(path.read_text(encoding="utf-8").replace("\r\n", "\n"))
+        lhs = r'\b(?:request\.)?method(?:\.as_str\(\))?'
+        special.update(re.findall(lhs + r'\s*[!=]=\s*"([^"]+)"', text))
+        special.update(re.findall(r'"([^"]+)"\s*[!=]=\s*' + lhs + r'\b', text))
+        for m in re.finditer(r'matches!\(\s*' + lhs + r'\s*,([^)]*)\)', text):
+            special.update(re.findall(r'"([^"]+)"', m.group(1)))
+    unknown = sorted(special - set(CLIENT_METHODS) - set(SECONDARY_METHODS))
+    if unknown:
+        problems.append(f"method comparisons outside the dispatch arms for unlisted methods: {unknown}")
     dispatched = main | docs | bitmaps | (special & {"host.hello"})
     missing = sorted(dispatched - set(CLIENT_METHODS))
     extra = sorted(set(CLIENT_METHODS) - dispatched)

@@ -680,6 +680,175 @@ mod tests {
         );
     }
 
+    /// NHK-CROSS-0009 (KDE Wayland + Orca): the tree the host publishes for a focused drop-down
+    /// `<select>`, driven by real input through the renderer and seen through the AT-SPI adapter.
+    /// AccessKit hands platform focus from the focused node to its active descendant; the combo
+    /// box (not its option list item) must carry STATE_FOCUSED collapsed, expanded, after Escape
+    /// and after a commit, with its value and selected child intact.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn atspi_focus_of_a_dropdown_select_stays_on_the_combo_box() {
+        use accesskit_atspi_common::{
+            Adapter, AdapterCallback, AppContext, Event, FullNodeId, InterfaceSet, ObjectEvent,
+            PlatformNode, Role as AtspiRole, State, WindowBounds,
+        };
+        use nativehtmlkit_renderer::{Document, Input};
+        struct Callback(Arc<Mutex<Vec<(FullNodeId, State, bool)>>>);
+        impl AdapterCallback for Callback {
+            fn register_interfaces(&self, _: &Adapter, _: FullNodeId, _: InterfaceSet) {}
+            fn unregister_interfaces(&self, _: &Adapter, _: FullNodeId, _: InterfaceSet) {}
+            fn emit_event(&self, _: &Adapter, event: Event) {
+                if let Event::Object {
+                    target: accesskit_atspi_common::NodeIdOrRoot::Node(node),
+                    event: ObjectEvent::StateChanged(state, on),
+                } = event
+                {
+                    self.0.lock().unwrap().push((node, state, on));
+                }
+            }
+        }
+        struct Handler;
+        impl ActionHandler for Handler {
+            fn do_action(&mut self, _: ActionRequest) {}
+        }
+        fn key(name: &str) -> Input {
+            Input::Key {
+                key: name.into(),
+                code: name.into(),
+                pressed: true,
+                repeat: false,
+                shift: false,
+                ctrl: false,
+                alt: false,
+                meta: false,
+            }
+        }
+        fn click(d: &mut Document, x: f64, y: f64) {
+            for pressed in [true, false] {
+                d.handle_input(Input::PointerButton {
+                    pressed,
+                    button: 0,
+                    x,
+                    y,
+                })
+                .unwrap();
+            }
+        }
+        fn walk(adapter: &Adapter, node: PlatformNode, out: &mut Vec<PlatformNode>) {
+            out.push(node.clone());
+            for i in 0..node.child_count().unwrap() as usize {
+                let child = node.child_at_index(i).unwrap().unwrap();
+                walk(adapter, adapter.platform_node(child), out);
+            }
+        }
+        /// (role, name, expanded) of every platform object with STATE_FOCUSED.
+        fn focused(adapter: &Adapter) -> Vec<(AtspiRole, String, bool)> {
+            let mut all = Vec::new();
+            walk(adapter, adapter.platform_node(adapter.root_id()), &mut all);
+            all.into_iter()
+                .filter(|n| n.state().contains(State::Focused))
+                .map(|n| {
+                    (
+                        n.role().unwrap(),
+                        n.name().unwrap(),
+                        n.state().contains(State::Expanded),
+                    )
+                })
+                .collect()
+        }
+
+        let mut d = Document::parse_hosted(
+            "<!doctype html><body style=margin:0><label for=drop>Fruit</label> \
+             <select id=drop style='display:block;width:160px;font-size:16px'><option>One</option>\
+             <option>Two</option><option>Three</option></select></body>",
+            None,
+            420,
+            200,
+        )
+        .unwrap();
+        d.render(420, 200, 1.0).unwrap();
+        d.handle_input(Input::Focus(true)).unwrap();
+        d.focus("drop").unwrap();
+        let mut state = TreeState::new(nativehtmlkit_renderer::a11y::full_update(
+            &d.accessibility_tree().unwrap(),
+        ))
+        .unwrap();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let app = AppContext::new(Some("Manifest App".into()));
+        let mut adapter = Adapter::new(
+            &app,
+            Callback(events.clone()),
+            state.full.clone(),
+            true,
+            WindowBounds::default(),
+            Handler,
+        );
+        let combo = |expanded| vec![(AtspiRole::ComboBox, "Fruit".to_string(), expanded)];
+        assert_eq!(focused(&adapter), combo(false), "(a) collapsed, focused");
+
+        let mut publish = |d: &mut Document, adapter: &mut Adapter| {
+            let tree = d.accessibility_tree().unwrap();
+            if let Some(delta) = state
+                .replace(None, nativehtmlkit_renderer::a11y::full_update(&tree))
+                .unwrap()
+            {
+                adapter.update(delta);
+            }
+        };
+        let r = d.element_rect("drop").unwrap().unwrap();
+        let (cx, cy) = (r.x + r.width / 2.0, r.y + r.height / 2.0);
+        click(&mut d, cx, cy);
+        d.handle_input(key("ArrowDown")).unwrap();
+        publish(&mut d, &mut adapter);
+        assert_eq!(
+            focused(&adapter),
+            combo(true),
+            "(b) expanded, highlight on Two"
+        );
+
+        d.handle_input(key("Escape")).unwrap();
+        publish(&mut d, &mut adapter);
+        assert_eq!(d.get_value("drop").unwrap(), "One");
+        assert_eq!(focused(&adapter), combo(false), "(c) after Escape");
+
+        click(&mut d, cx, cy);
+        d.handle_input(key("ArrowDown")).unwrap();
+        d.handle_input(key("Enter")).unwrap();
+        publish(&mut d, &mut adapter);
+        assert_eq!(d.get_value("drop").unwrap(), "Two");
+        assert_eq!(focused(&adapter), combo(false), "(d) after a commit");
+        let mut all = Vec::new();
+        walk(&adapter, adapter.platform_node(adapter.root_id()), &mut all);
+        let combo_node = all
+            .iter()
+            .find(|n| n.role().unwrap() == AtspiRole::ComboBox)
+            .unwrap();
+        // The options sit in a list box inside the combo box (AT-SPI combo box > list box > list
+        // item): Orca keeps focus mode for a list-box item it moves its locus to on a selection
+        // change, which it does not for a list item directly under the combo box.
+        assert_eq!(combo_node.child_count().unwrap(), 1);
+        let list = adapter.platform_node(combo_node.child_at_index(0).unwrap().unwrap());
+        assert_eq!(list.role().unwrap(), AtspiRole::ListBox);
+        assert_eq!(list.child_count().unwrap(), 3);
+        assert_eq!(list.n_selected_children().unwrap(), 1);
+        let selected = list.selected_child(0).unwrap().unwrap();
+        assert_eq!(adapter.platform_node(selected).name().unwrap(), "Two");
+        assert_eq!(
+            adapter.platform_node(selected).role().unwrap(),
+            AtspiRole::ListItem
+        );
+        assert!(
+            !events
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|(id, s, on)| *s == State::Focused
+                    && *on
+                    && adapter.platform_node(*id).role().unwrap() == AtspiRole::ListItem),
+            "no focus event may land on an option list item"
+        );
+    }
+
     /// Core 1.0 C08 (found on KDE with AT-SPI): the document projection's table indices, tree
     /// level, live-region/busy metadata and label/description relationships must reach AT-SPI
     /// object attributes and relations; the pinned adapter published only position/size.

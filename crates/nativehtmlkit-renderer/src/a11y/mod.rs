@@ -615,6 +615,40 @@ fn ak_node(n: &A11yNode, scale: f64) -> Node {
     a
 }
 
+/// Tag bit of the synthetic popup list of a drop-down combobox in the published AccessKit tree.
+pub(crate) const POPUP_TAG: u64 = 1 << 62;
+
+/// The published AccessKit node(s) of `n`. A drop-down `<select>` (a combobox whose children are
+/// its options) publishes its options inside a list-box child, the structure of browsers and
+/// native combo boxes (AT-SPI combo box > list box > list item, UIA ComboBox > List > ListItem);
+/// the host's own tree keeps the options directly under the combobox. NHK-CROSS-0009: Orca moves
+/// its locus to the selected child on a combo box's selection change and treats a list item as a
+/// focus-mode widget only inside a list box, so with the options directly under the combo box it
+/// fell back to browse mode after every value change and swallowed the arrow keys. The popup is
+/// derived from the combobox alone, so it is (re)published exactly when the combobox is.
+fn ak_nodes(tree: &A11yTree, n: &A11yNode, scale: f64) -> Vec<(AkId, Node)> {
+    let mut a = ak_node(n, scale);
+    let dropdown = n.role == Role::ComboBox
+        && !n.children.is_empty()
+        && n.children
+            .iter()
+            .all(|c| tree.get(*c).is_some_and(|o| o.role == Role::ListBoxOption));
+    if !dropdown {
+        return vec![(AkId(n.id), a)];
+    }
+    let popup = AkId(n.id | POPUP_TAG);
+    a.set_children(vec![popup]);
+    let mut list = Node::new(Role::ListBox);
+    if n.states.multiselectable {
+        list.set_multiselectable();
+    }
+    if n.states.disabled {
+        list.set_disabled();
+    }
+    list.set_children(n.children.iter().map(|c| AkId(*c)).collect::<Vec<_>>());
+    vec![(AkId(n.id), a), (popup, list)]
+}
+
 fn tree_info() -> TreeInfo {
     TreeInfo {
         root: AkId(ROOT_ID),
@@ -629,7 +663,7 @@ pub fn full_update(tree: &A11yTree) -> TreeUpdate {
         nodes: tree
             .nodes
             .values()
-            .map(|n| (AkId(n.id), ak_node(n, tree.scale)))
+            .flat_map(|n| ak_nodes(tree, n, tree.scale))
             .collect(),
         tree: Some(tree_info()),
         tree_id: TreeId::ROOT,
@@ -646,7 +680,7 @@ pub fn diff_update(prev: &A11yTree, next: &A11yTree) -> Option<TreeUpdate> {
         .nodes
         .values()
         .filter(|n| prev.nodes.get(&n.id) != Some(*n) || (scale_changed && n.id == ROOT_ID))
-        .map(|n| (AkId(n.id), ak_node(n, next.scale)))
+        .flat_map(|n| ak_nodes(next, n, next.scale))
         .collect();
     if nodes.is_empty() && prev.focus == next.focus {
         return None;

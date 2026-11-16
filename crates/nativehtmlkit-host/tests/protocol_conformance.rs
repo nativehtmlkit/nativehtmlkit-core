@@ -793,6 +793,29 @@ fn conformance_backend() {
         "document.load",
         json!({"window_id":window,"html":"a".repeat(1024*1024+1)}),
     );
+    // CORE-A-14 (1.0.3): `path`/`asset_root` loads read on a worker; the outcomes are unchanged.
+    // Relative paths resolve against the backend's cwd (the fixture's working directory).
+    std::fs::write("conformance-page.html", FIXTURE_HTML).unwrap();
+    c.case(
+        "document.load.path_missing",
+        "document.load",
+        json!({"window_id":window,"path":"no-such-page.html"}),
+    );
+    c.case(
+        "document.load.path_directory",
+        "document.load",
+        json!({"window_id":window,"path":"."}),
+    );
+    c.case(
+        "document.load.asset_root_not_directory",
+        "document.load",
+        json!({"window_id":window,"html":"<p>","asset_root":"conformance-page.html"}),
+    );
+    c.case(
+        "document.load.path_ok",
+        "document.load",
+        json!({"window_id":window,"path":"conformance-page.html"}),
+    );
     let loaded = c.case(
         "document.load.ok",
         "document.load",

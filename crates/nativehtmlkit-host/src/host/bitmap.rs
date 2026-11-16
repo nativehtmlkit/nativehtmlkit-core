@@ -22,6 +22,11 @@ const TRANSPORT_PREFIX: &str = "ui4me-bitmap-";
 /// `bitmap.present` (SIGKILL, crash). Only files whose name carries the pid of a process that no
 /// longer exists are removed; files of live hosts, legacy unnamed files and anything that is not a
 /// regular file are left alone. Returns the number of files removed.
+///
+/// FR-R-15: on Linux a live host holds a shared `flock` on each transport file it created,
+/// and a file is removed only when an exclusive lock can be taken, so a host in another PID namespace
+/// that shares the runtime directory keeps its files. On Windows the files live in a dedicated
+/// `%TEMP%\nativehtmlkit-bitmaps` directory, so the sweep never scans all of `%TEMP%`.
 pub(super) fn sweep_stale_transports() -> usize {
     match platform::bitmap_directory() {
         Ok(dir) => sweep_stale_transports_in(&dir, platform::process_alive),
@@ -53,11 +58,53 @@ fn sweep_stale_transports_in(dir: &std::path::Path, alive: impl Fn(u32) -> bool)
         let regular = std::fs::symlink_metadata(&path)
             .map(|m| m.file_type().is_file())
             .unwrap_or(false);
-        if regular && std::fs::remove_file(&path).is_ok() {
+        if !regular {
+            continue;
+        }
+        #[cfg(target_os = "linux")]
+        let _released = match unheld(&path) {
+            Some(file) => file,
+            None => continue,
+        };
+        if std::fs::remove_file(&path).is_ok() {
             removed += 1;
         }
     }
     removed
+}
+
+/// Probe a transport file with an exclusive `flock` (FR-R-15): it succeeds only when no live
+/// host and no backend holds the file. `false` when a lock is held elsewhere or the file system
+/// does not support it (the caller then keeps the file).
+#[cfg(target_os = "linux")]
+fn try_lock(file: &File) -> bool {
+    use std::os::fd::AsRawFd;
+    // SAFETY: flock on a descriptor this function borrows; no memory is passed.
+    unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) == 0 }
+}
+
+/// The lock a live host keeps on its own transport file. It is SHARED (NHK-CROSS-0008): a
+/// backend must be able to open and map the path, and runtimes such as .NET take a shared
+/// advisory `flock` on every file they open, which an exclusive host lock would refuse. A
+/// shared lock still makes the sweep's exclusive probe fail, so liveness detection is unchanged.
+#[cfg(target_os = "linux")]
+fn hold_lock(file: &File) -> bool {
+    use std::os::fd::AsRawFd;
+    // SAFETY: flock on a descriptor this function borrows; no memory is passed.
+    unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) == 0 }
+}
+
+/// The transport file opened and locked, proving no live host holds it; `None` otherwise.
+/// Opened without following a final symlink.
+#[cfg(target_os = "linux")]
+fn unheld(path: &std::path::Path) -> Option<File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+        .open(path)
+        .ok()?;
+    try_lock(&file).then_some(file)
 }
 
 pub(super) struct Bitmap {
@@ -170,6 +217,11 @@ impl Bitmap {
         file.as_file()
             .set_len(total)
             .map_err(|e| RpcError::unavailable(e.to_string()))?;
+        // Held for the bitmap's lifetime: the startup sweep of any host leaves it alone.
+        #[cfg(target_os = "linux")]
+        if !hold_lock(file.as_file()) {
+            tracing::debug!("bitmap transport file cannot be locked; a sweep keeps it anyway only while the creating pid is alive");
+        }
         let (file, path) = file.into_parts();
         Ok(Self {
             file,
@@ -369,6 +421,35 @@ impl Host {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// FR-R-15: the pid in a transport name is only meaningful in the creating host's PID
+    /// namespace. A file whose pid looks dead here but which a live host still holds (its
+    /// lock; e.g. a host in a container sharing `$XDG_RUNTIME_DIR`) is kept; once that host
+    /// is gone (lock released) the file is swept.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn sweep_keeps_a_transport_still_held_by_a_host_in_another_pid_namespace() {
+        use std::os::fd::AsRawFd;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(format!("{TRANSPORT_PREFIX}999999999-abc"));
+        let held = File::create(&path).unwrap();
+        // What a live host does with its transport file while it exists.
+        assert!(hold_lock(&held));
+        // NHK-CROSS-0008: a backend runtime that takes its own shared advisory lock on open
+        // (.NET FileStream / MemoryMappedFile do) must still be able to open the file.
+        let backend = File::open(&path).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(backend.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) },
+            0,
+            "a backend's shared lock was refused while the host holds the file"
+        );
+        drop(backend);
+        assert_eq!(sweep_stale_transports_in(dir.path(), |_| false), 0);
+        assert!(path.exists(), "a held transport was removed");
+        drop(held);
+        assert_eq!(sweep_stale_transports_in(dir.path(), |_| false), 1);
+        assert!(!path.exists());
+    }
     #[test]
     fn reject_unbounded_or_unsupported_descriptions() {
         let req = Create {

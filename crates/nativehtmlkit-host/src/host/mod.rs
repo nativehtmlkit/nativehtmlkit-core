@@ -7,6 +7,7 @@ mod document_native;
 mod documents;
 mod native;
 use documents::HostedDocument;
+mod placement;
 mod requests;
 
 use crate::{
@@ -26,7 +27,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::{
-    atomic::{AtomicBool, AtomicI32, Ordering},
+    atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering},
     mpsc, Arc,
 };
 use std::time::{Duration, Instant};
@@ -53,6 +54,10 @@ struct NativeWindow {
     drag_selecting: bool,
     /// Whether a frame has been presented (logged once for startup timing).
     presented: bool,
+    /// NHK-CROSS-0006: until this deadline the new window is neither shown (Windows) nor given a
+    /// first buffer (Wayland maps on the first commit), unless a document is loaded first. `None`
+    /// once revealed. See [`reveal_due`].
+    reveal_deadline: Option<Instant>,
     /// When the compositor last resized the surface and no frame of that
     /// size has been presented yet (debug-level resize-to-present timing).
     resized_at: Option<Instant>,
@@ -68,6 +73,22 @@ struct NativeWindow {
     /// preedit), and re-sending on each redraw turned that into an unbounded IME/redraw loop.
     ime_sent: Option<ImeState>,
     incoming_drop: Option<IncomingDrop>,
+}
+
+/// CORE-A-13: notifications the host drops (and counts in `host.diagnostics`
+/// `dropped_notifications`) instead of failing the session while the backend does not read.
+/// Replies, host requests and lifecycle notifications are never dropped.
+const DROPPABLE_NOTIFICATIONS: [&str; 2] = ["window.event", "document.event"];
+
+/// NHK-CROSS-0006: how long a new window waits for its first `document.load` before the
+/// built-in placeholder page is presented instead.
+pub(super) const FIRST_PRESENT_GRACE: Duration = Duration::from_millis(750);
+
+/// Whether a window still waiting for its first presentation must be revealed now: its
+/// document is loaded, the grace period has elapsed, or the application failed (the failure
+/// page must be visible at once).
+fn reveal_due(deadline: Option<Instant>, has_document: bool, failed: bool, now: Instant) -> bool {
+    deadline.is_some_and(|deadline| has_document || failed || now >= deadline)
 }
 
 #[derive(Clone)]
@@ -134,6 +155,10 @@ enum JobKind {
         document_id: String,
         node: nativehtmlkit_renderer::NodeId,
     },
+    /// A `document.load` whose file reads run on a worker (CORE-A-14).
+    DocumentLoad {
+        window_id: String,
+    },
 }
 impl JobKind {
     fn is_dialog(&self) -> bool {
@@ -179,6 +204,10 @@ struct PendingTransfer {
 pub struct Host {
     #[cfg(test)]
     observed_notifications: Vec<Value>,
+    /// CORE-A-13: droppable notifications refused under output backpressure, and whether
+    /// the current pressure episode was already logged.
+    dropped_notifications: u64,
+    notification_pressure: bool,
     config: AppConfig,
     icon: winit::icon::Icon,
     headless: bool,
@@ -220,6 +249,9 @@ pub struct Host {
     /// Set once this event loop has acted on `launcher_gone`; the launcher watchdog
     /// terminates the process when this does not happen in time (NHK-CROSS-0001).
     launcher_acknowledged: Arc<AtomicBool>,
+    /// The backend process-group id shared with the launcher watchdog; zeroed when the
+    /// backend is reaped (FR-R-13).
+    backend_group: Arc<AtomicU32>,
     /// Method and receive time of in-flight requests, recorded only at trace level.
     rpc_started: HashMap<Reply, (String, Instant)>,
     /// Shared native presentation context, created with the first window.
@@ -376,7 +408,8 @@ pub fn doctor() -> Value {
         "run_containment":platform::run_containment_description(),
         "paths":platform::standard_paths("org.nativehtmlkit.HostProbe").ok(),
         "native_tests":"not run by doctor","renderer":"CPU HTML/CSS desktop profile ui4me-desktop-1.0 (plus diagnostic probe)",
-        "windowing_dependency":"winit 0.31.0-beta.4 (exactly pinned)"})
+        "windowing_dependency":"winit 0.31.0-beta.4 (exactly pinned)",
+        "build":crate::build_info::source()})
 }
 
 fn random_token() -> Result<String> {
@@ -435,12 +468,13 @@ impl Host {
         let (job_tx, job_rx) = mpsc::sync_channel(protocol::MAX_PENDING);
         let (action_tx, action_rx) = mpsc::sync_channel(128);
         let launcher_acknowledged = Arc::new(AtomicBool::new(false));
+        let backend_group = Arc::new(AtomicU32::new(backend.as_ref().map_or(0, Backend::id)));
         let launcher_gone = platform::watch_launcher(
             wake.clone(),
             platform::LauncherWatchdog {
                 acknowledged: launcher_acknowledged.clone(),
                 shutdown_timeout: Duration::from_millis(config.host.shutdown_timeout_ms),
-                backend_group: backend.as_ref().map(Backend::id),
+                backend_group: backend_group.clone(),
             },
         );
         let preferences = platform::preferences::PreferenceWatch::new(!headless, wake.clone());
@@ -489,29 +523,49 @@ impl Host {
             exit_code,
             launcher_gone,
             launcher_acknowledged,
+            backend_group,
             rpc_started: HashMap::new(),
             presentation: None,
             preferences,
             preference_revision: 0,
             #[cfg(test)]
             observed_notifications: Vec::new(),
+            dropped_notifications: 0,
+            notification_pressure: false,
         })
     }
 
     fn send(&mut self, connection: u64, value: Value) {
-        if let Some(server) = &self.server {
-            if let Err(error) = server.reply(connection, value) {
-                tracing::warn!(connection, %error, "peer cannot receive bounded output");
-                server.disconnect(connection);
-                self.dropped_connections.insert(connection);
-                if self.client == Some(connection) {
-                    self.client = None;
-                    self.send_failure.get_or_insert_with(|| {
-                        format!("Backend cannot receive bounded host output: {error}")
-                    });
+        let Some(server) = &self.server else {
+            return;
+        };
+        if let Err(error) = server.reply(connection, value) {
+            if self.send_failed(connection, &error) {
+                if let Some(server) = &self.server {
+                    server.disconnect(connection);
                 }
             }
         }
+    }
+
+    /// FR-R-14: a send to a connection that is already closed is not an output overflow: the
+    /// connection's `Disconnected` event reports it (as "connection lost"), and nothing is
+    /// recorded that no later event would remove. Returns whether the host must close the
+    /// connection (a live peer that cannot receive bounded output).
+    fn send_failed(&mut self, connection: u64, error: &anyhow::Error) -> bool {
+        if error.is::<crate::transport::ConnectionClosed>() {
+            tracing::debug!(connection, "reply to a closed connection discarded");
+            return false;
+        }
+        tracing::warn!(connection, %error, "peer cannot receive bounded output");
+        self.dropped_connections.insert(connection);
+        if self.client == Some(connection) {
+            self.client = None;
+            self.send_failure.get_or_insert_with(|| {
+                format!("Backend cannot receive bounded host output: {error}")
+            });
+        }
+        true
     }
     fn respond(&mut self, reply: &Reply, value: Result<Value, RpcError>) {
         let mut error_code = value.as_ref().err().map(|error| error.code);
@@ -563,6 +617,7 @@ impl Host {
     }
     fn notify(&mut self, method: &str, params: Value) {
         if let Some(client) = self.client {
+            let droppable = DROPPABLE_NOTIFICATIONS.contains(&method);
             let message = protocol::notification(method, params);
             if let Err(error) = protocol::encoded_size(&message) {
                 // A notification has no caller awaiting an error response.
@@ -576,7 +631,33 @@ impl Host {
             }
             #[cfg(test)]
             self.observed_notifications.push(message.clone());
-            self.send(client, message);
+            if !droppable {
+                self.send(client, message);
+                return;
+            }
+            let Some(server) = &self.server else {
+                return;
+            };
+            match server.notify_droppable(client, message) {
+                Ok(()) => self.notification_pressure = false,
+                Err(error) if error.is::<crate::transport::Backpressure>() => {
+                    self.dropped_notifications += 1;
+                    if !std::mem::replace(&mut self.notification_pressure, true) {
+                        tracing::warn!(
+                            method,
+                            dropped_total = self.dropped_notifications,
+                            "backend is not reading; dropping input notifications until it catches up"
+                        );
+                    }
+                }
+                Err(error) => {
+                    if self.send_failed(client, &error) {
+                        if let Some(server) = &self.server {
+                            server.disconnect(client);
+                        }
+                    }
+                }
+            }
         }
     }
     fn window_event_message(&mut self, id: &str, kind: &str, data: Value) {
@@ -639,6 +720,14 @@ impl Host {
                                 result.value,
                                 event_loop,
                             );
+                        }
+                    } else if let JobKind::DocumentLoad { window_id } = &job.kind {
+                        let window_id = window_id.clone();
+                        let outcome = self.finish_document_load(&window_id, result.value);
+                        self.prune_document_work(&window_id);
+                        self.document_changed(&window_id, event_loop);
+                        if let Some(reply) = &job.reply {
+                            self.respond(reply, outcome);
                         }
                     } else if let Some(reply) = job.reply {
                         self.respond(&reply, result.value);
@@ -725,6 +814,7 @@ impl Host {
             }
         }
         self.poll_documents(event_loop);
+        self.reveal_windows();
         if let Some(backend) = &self.backend {
             crate::logging::backend_logs(backend.drain_logs());
         }
@@ -733,6 +823,8 @@ impl Host {
             Err(error) => Some(Err(error)),
         });
         if let Some(exit) = backend_exit {
+            // try_wait reaped it: its process-group id may be reused from now on.
+            self.backend_group.store(0, Ordering::SeqCst);
             self.backend.take();
             match exit {
                 Ok(status) if self.lifecycle.phase() == Phase::Quitting => {
@@ -1225,6 +1317,7 @@ impl Host {
             record.document = None;
             record.probe.failure = Some(reason.chars().take(160).collect());
         }
+        self.reveal_windows();
         for id in self.windows.keys().cloned().collect::<Vec<_>>() {
             self.refresh(&id);
         }
@@ -1302,6 +1395,34 @@ impl Host {
         }
     }
 
+    /// Show every window whose first presentation is due (NHK-CROSS-0006): apply the
+    /// requested visibility and ask for the first frame.
+    fn reveal_windows(&mut self) {
+        let now = Instant::now();
+        let failed = self.lifecycle.phase() == Phase::Failed;
+        for record in self.windows.values_mut() {
+            let has_document = record.document.is_some();
+            let Some(native) = &mut record.native else {
+                continue;
+            };
+            if reveal_due(native.reveal_deadline, has_document, failed, now) {
+                native.reveal_deadline = None;
+                native.window.set_visible(record.visible);
+                native.window.request_redraw();
+            }
+        }
+    }
+
+    /// Time until the earliest pending first-presentation deadline, if any.
+    fn reveal_wait(&self) -> Option<Duration> {
+        let now = Instant::now();
+        self.windows
+            .values()
+            .filter_map(|w| w.native.as_ref()?.reveal_deadline)
+            .min()
+            .map(|deadline| deadline.saturating_duration_since(now))
+    }
+
     fn refresh(&mut self, id: &str) {
         if self.windows.get(id).is_some_and(|w| w.document.is_some()) {
             self.refresh_document(id);
@@ -1358,6 +1479,64 @@ impl Host {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// FR-R-14: a reply to an already closed connection neither records an output overflow nor
+    /// leaves an entry in `dropped_connections`; a real overflow of the client does both.
+    #[test]
+    fn send_errors_distinguish_a_closed_connection_from_an_overflow() {
+        let mut host = controller(true);
+        host.client = Some(7);
+        let closed = anyhow::Error::from(crate::transport::ConnectionClosed);
+        assert!(!host.send_failed(7, &closed));
+        assert!(!host.send_failed(9, &closed));
+        assert!(host.dropped_connections.is_empty());
+        assert_eq!(host.send_failure, None);
+        assert_eq!(host.client, Some(7));
+        let overflow = anyhow::anyhow!("connection outgoing byte limit exceeded");
+        assert!(host.send_failed(7, &overflow));
+        assert!(host.dropped_connections.contains(&7));
+        assert_eq!(host.client, None);
+        assert!(host
+            .send_failure
+            .as_deref()
+            .is_some_and(|r| r.contains("byte limit")));
+    }
+
+    /// NHK-CROSS-0006: a new window is revealed as soon as its document is loaded, at the
+    /// latest after the bounded grace period, and at once when the application failed;
+    /// a revealed window (`None`) is never revealed again.
+    #[test]
+    fn first_presentation_waits_for_the_document_within_a_bounded_grace() {
+        let created = Instant::now();
+        let deadline = Some(created + FIRST_PRESENT_GRACE);
+        assert!(!reveal_due(deadline, false, false, created));
+        assert!(!reveal_due(
+            deadline,
+            false,
+            false,
+            created + FIRST_PRESENT_GRACE - Duration::from_millis(1)
+        ));
+        assert!(reveal_due(deadline, true, false, created));
+        assert!(reveal_due(deadline, false, true, created));
+        assert!(reveal_due(
+            deadline,
+            false,
+            false,
+            created + FIRST_PRESENT_GRACE
+        ));
+        assert!(!reveal_due(None, true, true, created + FIRST_PRESENT_GRACE));
+        assert!(FIRST_PRESENT_GRACE <= Duration::from_secs(1));
+    }
+
+    /// Headless windows have no native surface, so there is nothing to reveal and no
+    /// first-presentation wake-up is scheduled.
+    #[test]
+    fn headless_windows_schedule_no_first_presentation_wakeup() {
+        let mut host = controller(true);
+        host.create_window(json!({}), None).unwrap();
+        assert_eq!(host.reveal_wait(), None);
+        host.reveal_windows();
+    }
 
     /// A controller with no transport/process/native resources. This exercises
     /// lifecycle policy independently of desktop or IPC availability.
@@ -1417,12 +1596,15 @@ mod tests {
             exit_code: Arc::new(AtomicI32::new(0)),
             launcher_gone: None,
             launcher_acknowledged: Arc::new(AtomicBool::new(false)),
+            backend_group: Arc::new(AtomicU32::new(0)),
             rpc_started: HashMap::new(),
             presentation: None,
             preferences: platform::preferences::PreferenceWatch::new(false, Arc::new(|| {})),
             preference_revision: 0,
             #[cfg(test)]
             observed_notifications: Vec::new(),
+            dropped_notifications: 0,
+            notification_pressure: false,
         }
     }
 

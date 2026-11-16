@@ -16,6 +16,15 @@ notice files. Staging fails if a crate has neither a licence text nor a declared
 
 The zip is deterministic: sorted entries, the HEAD commit time as every entry's timestamp, fixed
 permissions. The host binary itself is not bit-reproducible.
+
+Binary/source binding (FR-R-04): the host embeds the source identity of the tree it was built
+from (crates/nativehtmlkit-host/build.rs; `nativehtmlkit-host --version --verbose`). Staging and
+publication refuse a binary whose embedded commit, tree hash and dirty flag differ from the
+checkout being staged, or whose identity is unknown. A source export without git carries
+`SOURCE_IDENTITY.json` (written by `--write-source-identity DIR` from a clean checkout); there the
+listed files are re-hashed and must match both the file and the binary. Staging also refuses a
+binary that embeds the local home, Cargo home or source directory path; `--build` builds the
+release host with the required `--remap-path-prefix` flags (used by build-local.sh/.ps1).
 """
 from __future__ import annotations
 
@@ -43,7 +52,7 @@ STATIC_FILES = {
     "LICENSE": ROOT / "LICENSE",
     "THIRD_PARTY_NOTICES.md": ROOT / "THIRD_PARTY_NOTICES.md",
     "SOURCE_PROVENANCE.json": ROOT / "SOURCE_PROVENANCE.json",
-    # The host embeds Noto Sans twice (byte-identical: renderer last resort and `probe`); one OFL covers both.
+    # The host embeds Noto Sans once (renderer last resort, also used by `probe` since 1.0.3).
     "licenses/NotoSans-OFL.txt": ROOT / "crates/nativehtmlkit-assets/assets/last-resort/OFL.txt",
     # Hyphenation patterns embedded by the renderer (MIT, BSD-3-Clause, notice-preservation terms).
     "licenses/hyphenation-NOTICES.txt": RENDERER / "text/data/hyphenation/NOTICES.txt",
@@ -101,6 +110,141 @@ def run(args: list[str], *, env: dict | None = None, text: bool = True) -> str |
 def git(*args: str, env: dict | None = None) -> str:
     # GIT_OPTIONAL_LOCKS=0: `git status` must not refresh (rewrite) the real index.
     return run(["git", *args], env=dict(env or os.environ, GIT_OPTIONAL_LOCKS="0"))
+
+
+IDENTITY_FILE = "SOURCE_IDENTITY.json"
+IDENTITY_SCHEMA = "nativehtmlkit-core-source-identity/1"
+
+
+def files_digest(root: pathlib.Path, files: list[str]) -> str:
+    """SHA-256 over `"<sha256>  <path>\n"` lines, in list order (same as host build.rs)."""
+    total = hashlib.sha256()
+    for name in files:
+        total.update(f"{sha256(root / name)}  {name}\n".encode("utf-8"))
+    return total.hexdigest()
+
+
+def is_git_checkout() -> bool:
+    if shutil.which("git") is None:
+        return False
+    done = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=ROOT, capture_output=True, text=True,
+                          env=dict(os.environ, GIT_OPTIONAL_LOCKS="0"))
+    return done.returncode == 0 and pathlib.Path(done.stdout.strip()).resolve() == ROOT
+
+
+def write_source_identity(export: pathlib.Path) -> None:
+    """Write SOURCE_IDENTITY.json for a `git archive HEAD` export of this clean checkout."""
+    source = source_identity()
+    if source["source_dirty"]:
+        raise ReleaseError("a source identity file can only describe a clean commit")
+    files = sorted(git("ls-tree", "-r", "--name-only", "HEAD").splitlines())
+    bad = [f for f in files if any(c in f for c in ',"\\]') or f.startswith("/")]
+    if bad:
+        raise ReleaseError(f"file names unsupported by the identity format: {bad[:5]}")
+    missing = [f for f in files if not (export / f).is_file()]
+    if missing:
+        raise ReleaseError(f"{export} lacks {len(missing)} tracked files, e.g. {missing[:5]}")
+    digest = files_digest(ROOT, files)
+    if files_digest(export, files) != digest:
+        raise ReleaseError(f"{export} differs from HEAD (line endings or edits); export with `git archive HEAD`")
+    record = {
+        "schema_name": IDENTITY_SCHEMA,
+        "source_commit": source["source_commit"],
+        "source_commit_time": source["source_commit_time"],
+        "source_tree": source["source_tree"],
+        "files_sha256": digest,
+        "files": files,
+    }
+    (export / IDENTITY_FILE).write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n",
+                                        encoding="utf-8", newline="\n")
+    print(f"wrote {export / IDENTITY_FILE}: commit {source['source_commit']}, {len(files)} files")
+
+
+def export_identity() -> dict:
+    """The identity of a non-git source export, verified against its SOURCE_IDENTITY.json."""
+    path = pathlib.Path(os.environ.get("NATIVEHTMLKIT_SOURCE_IDENTITY") or ROOT / IDENTITY_FILE)
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise ReleaseError(f"not a git checkout and no readable {IDENTITY_FILE} ({error}); "
+                           "source provenance cannot be established")
+    if record.get("schema_name") != IDENTITY_SCHEMA or not isinstance(record.get("files"), list):
+        raise ReleaseError(f"{path} is not a {IDENTITY_SCHEMA} record")
+    digest = files_digest(ROOT, record["files"])
+    if digest != record.get("files_sha256"):
+        raise ReleaseError(f"the source export differs from {path} (listed files changed)")
+    return {
+        "source_commit": record["source_commit"],
+        "source_commit_time": int(record["source_commit_time"]),
+        "source_dirty": False,
+        "source_tree": record["source_tree"],
+        "source_tree_method": f"from {IDENTITY_FILE} of a source export; its {len(record['files'])} listed files verified by SHA-256",
+        "source_files_sha256": digest,
+        "source_identity": "file",
+    }
+
+
+def checkout_identity() -> dict:
+    if is_git_checkout():
+        return {**source_identity(), "source_identity": "git"}
+    return export_identity()
+
+
+def embedded_identity(binary: pathlib.Path) -> dict:
+    done = subprocess.run([str(binary), "--version", "--verbose"], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", timeout=15)
+    try:
+        value = json.loads(done.stdout)
+    except ValueError:
+        value = None
+    if done.returncode != 0 or not isinstance(value, dict) or "source_identity" not in value:
+        raise ReleaseError(f"{binary} embeds no source identity (`--version --verbose` failed); "
+                           "it predates FR-R-04 or is not a nativehtmlkit-host 1.0.3+ build")
+    return value
+
+
+def identity_mismatch(embedded: dict, checkout: dict) -> list[str]:
+    """Differences between the binary's embedded identity and the checkout (empty: bound)."""
+    if embedded.get("source_identity") not in ("git", "file"):
+        return [f"the binary's source identity is unknown ({embedded.get('source_identity_note')})"]
+    keys = ["source_identity", "source_commit", "source_tree", "source_dirty"]
+    if checkout.get("source_identity") == "file":
+        keys.append("source_files_sha256")
+    return [f"{k}: binary {embedded.get(k)!r}, checkout {checkout.get(k)!r}" for k in keys if embedded.get(k) != checkout.get(k)]
+
+
+def leaked_paths(binary: pathlib.Path) -> list[str]:
+    """Local paths (home, Cargo home, source root) embedded in the binary (FR-R-06)."""
+    data = binary.read_bytes()
+    home = pathlib.Path.home()
+    cargo_home = pathlib.Path(os.environ.get("CARGO_HOME") or home / ".cargo")
+    found = []
+    for path in {home, cargo_home, ROOT}:
+        for text in {str(path), path.as_posix()}:
+            if len(text) > 3 and text.encode("utf-8") in data:
+                found.append(text)
+    return sorted(set(found))
+
+
+def remap_rustflags() -> list[str]:
+    """`--remap-path-prefix` flags for the release build: the most specific prefix comes last
+    (rustc applies the last matching remapping)."""
+    home = pathlib.Path.home()
+    cargo_home = pathlib.Path(os.environ.get("CARGO_HOME") or home / ".cargo")
+    flags = [f"--remap-path-prefix={home}=/home", f"--remap-path-prefix={cargo_home}=/cargo",
+             f"--remap-path-prefix={ROOT}=/nativehtmlkit-core"]
+    if os.name == "nt":
+        # The PE debug directory names the PDB by absolute path; keep only its file name.
+        flags.append("-Clink-arg=/PDBALTPATH:%_PDB%")
+    return flags
+
+
+def build_release_host() -> None:
+    env = dict(os.environ, CARGO_ENCODED_RUSTFLAGS="\x1f".join(remap_rustflags()))
+    env.pop("RUSTFLAGS", None)
+    done = subprocess.run(["cargo", "build", "--locked", "--release", "-p", HOST_PACKAGE], cwd=ROOT, env=env)
+    if done.returncode != 0:
+        raise ReleaseError(f"release build failed ({done.returncode})")
 
 
 def source_identity() -> dict:
@@ -243,7 +387,7 @@ def third_party_licences(target: str) -> tuple[str, dict]:
         f"declared licence only (no file in the package): {len(declared_only)}.",
         "",
         "Embedded data (see the files next to this one):",
-        "  NotoSans-OFL.txt              Noto Sans Regular (SIL OFL 1.1), embedded twice (byte-identical)",
+        "  NotoSans-OFL.txt              Noto Sans Regular (SIL OFL 1.1), embedded once",
         "  hyphenation-NOTICES.txt       TeX hyphenation patterns (MIT, BSD-3-Clause, notice-preservation)",
         "  UA-STYLESHEETS-NOTICE.txt     WHATWG-derived UA stylesheets (CC-BY-4.0, owner-approved 2026-11-15)",
         "",
@@ -282,7 +426,18 @@ def main() -> int:
     p.add_argument("--binary", type=pathlib.Path, default=None)
     p.add_argument("--restage", action="store_true",
                    help="replace an existing stage of the same version even if its host SHA-256 differs")
+    p.add_argument("--build", action="store_true",
+                   help="build the release host with --remap-path-prefix first (then stage/publish if requested)")
+    p.add_argument("--write-source-identity", type=pathlib.Path, metavar="EXPORT_DIR",
+                   help="write SOURCE_IDENTITY.json for a `git archive HEAD` export of this clean checkout and exit")
     a = p.parse_args()
+    if a.write_source_identity:
+        write_source_identity(a.write_source_identity.resolve())
+        return 0
+    if a.build:
+        build_release_host()
+        if not (a.stage_only or a.publish):
+            return 0
     if a.publish and a.stage_only:
         p.error("Choose --stage-only or --publish")
     version = a.version or tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))["workspace"]["package"]["version"]
@@ -301,10 +456,22 @@ def main() -> int:
     if reported != f"nativehtmlkit-host {version}":
         p.error(f"host --version {reported!r} does not match release version {version}")
     subprocess.run([sys.executable, str(ROOT / "scripts/generate-protocol-contract.py"), "--check"], check=True)
-    source = source_identity()
+    source = checkout_identity()
+    embedded = embedded_identity(binary)
+    mismatch = identity_mismatch(embedded, source)
+    if mismatch:
+        p.error("the host binary was not built from this checkout (FR-R-04):\n  " + "\n  ".join(mismatch)
+                + "\nRebuild it from this tree (python3 scripts/release-local.py --build); if the tree is unchanged "
+                  "since a build, touch crates/nativehtmlkit-host/build.rs to refresh the embedded identity.")
+    leaks = leaked_paths(binary)
+    if leaks:
+        p.error(f"the host binary embeds local paths {leaks} (FR-R-06); build it with "
+                "`python3 scripts/release-local.py --build` (remaps them with --remap-path-prefix)")
     tools = toolchain()
     host_sha = sha256(binary)
     if a.publish:
+        if source["source_identity"] != "git":
+            p.error("Publication requires a git checkout (the tag is verified against HEAD)")
         if source["source_dirty"]:
             p.error("Clean commit required before publication")
         tag = "v" + version
@@ -353,8 +520,9 @@ def main() -> int:
         "host_version_output": reported,
         "host_reproducible": False,
         "protocol_version": 1,
-        "protocol_status": "1.0-rc: wire contract locked by runtime golden; public stability withheld (see protocol/CONFORMANCE-ROADMAP.md)",
+        "protocol_status": "1.0: public-stable wire contract since host 1.0.3 (see protocol/COMPATIBILITY.md)",
         **{k: v for k, v in source.items() if k != "source_commit_time"},
+        "host_embedded_source": {k: embedded.get(k) for k in ("source_identity", "source_commit", "source_tree", "source_dirty", "source_files_sha256")},
         "toolchain": tools["rustc"],
         "cargo": tools["cargo"],
         "third_party_licences": licence_summary,
@@ -390,6 +558,8 @@ def main() -> int:
             host.chmod(0o755)
         if subprocess.run([str(host), "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15).stdout.strip() != reported:
             p.error("extracted host --version differs")
+        if identity_mismatch(embedded_identity(host), source):
+            p.error("extracted host embeds a different source identity")
     (stage.parent / (archive.name + ".sha256")).write_text(f"{sha256(archive)}  {archive.name}\n", encoding="utf-8", newline="\n")
     print(f"staged and verified: {archive}\n  sha256 {sha256(archive)}\n  host   {host_sha}\n"
           f"  commit {source['source_commit']}{' (dirty, diff ' + source['source_diff_sha256'][:12] + ')' if source['source_dirty'] else ''}\n"
@@ -399,6 +569,8 @@ def main() -> int:
         staged = json.loads((stage / "release-manifest.json").read_text(encoding="utf-8"))
         if staged["source_commit"] != git("rev-parse", "--verify", "HEAD^{commit}") or staged["source_dirty"] is not False:
             p.error("staged manifest is not from a clean HEAD; refusing to publish")
+        if identity_mismatch(embedded_identity(stage / exe), source_identity() | {"source_identity": "git"}):
+            p.error("staged host was not built from the clean HEAD; refusing to publish")
         # gh release create does not trigger any Actions in this repository: no workflows shipped.
         subprocess.run(["gh", "release", "create", "v" + version, str(archive), "--repo", REPO, "--verify-tag",
                         "--title", "NativeHTMLKit Core v" + version, "--notes", "Locally built and tested."], check=True)

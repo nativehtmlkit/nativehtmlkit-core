@@ -1,7 +1,11 @@
 //! owner: 007-resources (T011, T039) — the file guard.
 //!
 //! Check, open, then verify: root membership is first decided without opening anything (CORE-A-01:
-//! the path as written or its resolved existing prefix; UNC only under a UNC root). The file is then
+//! the path as written or its resolved existing prefix; UNC only under a UNC root). On Windows a
+//! path outside every root is refused on its lexically normalised string and never resolved
+//! (FR-R-12: resolving opens a handle, even on a mapped network drive); on Unix the resolution of
+//! the existing prefix uses `lstat`/`readlink` on the path's components, which can trigger an
+//! automount but never opens the target. The file is then
 //! opened normally (links are followed), then the **opened handle's**
 //! final path is compared with the canonical roots by path components, then `fstat` must report a
 //! regular file and the size is checked against the kind's limit before reading. Path-string checks
@@ -120,10 +124,11 @@ pub fn open_verified(
     }
     let ci = cfg!(windows);
     // CORE-A-01: decide root membership *before* anything is opened, so a path outside every root
-    // (a device node, an automount trigger, a FIFO, or on Windows an SMB share) is never touched.
+    // (a device node, a FIFO, or on Windows an SMB share) is never opened; on Windows it is not
+    // resolved either (FR-R-12).
     // One message for every outside-root case: the answer must not reveal what exists beyond the
     // roots (decision D-007-02).
-    if !within_roots_lexically(path, roots, ci) {
+    if !within_roots_lexically(path, roots, ci, cfg!(windows)) {
         return Err(status(Code::ResourceDenied, OUTSIDE_ROOTS));
     }
     // Defence in depth (symlink swapped after the check, TOCTOU): verify the opened handle.
@@ -148,11 +153,16 @@ const OUTSIDE_ROOTS: &str = "path is outside every configured root";
 ///   nothing is opened) and compared with the roots, so a symlink inside a root that points
 ///   outside is refused before the open as well.
 /// * Windows: `canonicalize` itself opens a (zero-access) handle, so a path that lies under a
-///   root as written (no `.`/`..` components) is admitted without resolving it; only other paths
-///   are resolved. A UNC path is admitted only under a UNC root, judged on the string alone
-///   (resolving it would already contact the server).
-fn within_roots_lexically(path: &Path, roots: &[PathBuf], ci: bool) -> bool {
-    if cfg!(windows) {
+///   root as written (no `.`/`..` components) is admitted without resolving it. Any other path is
+///   first normalised lexically (`.` dropped, `..` applied to the string); when that is outside
+///   every root it is refused without touching the file system (FR-R-12; an 8.3 short-name
+///   spelling of a root is therefore refused), otherwise it is resolved. A UNC path is admitted
+///   only under a UNC root, judged on the string alone (resolving it would already contact the
+///   server).
+///
+/// `windows` selects the Windows rules (a parameter so both rule sets are unit-tested anywhere).
+fn within_roots_lexically(path: &Path, roots: &[PathBuf], ci: bool, windows: bool) -> bool {
+    if windows {
         let p = path.to_string_lossy();
         let rs: Vec<String> = roots
             .iter()
@@ -167,19 +177,48 @@ fn within_roots_lexically(path: &Path, roots: &[PathBuf], ci: bool) -> bool {
             return true;
         }
     }
-    let plain = cfg!(windows)
+    let plain = windows
         && path
             .components()
             .all(|c| !matches!(c, Component::CurDir | Component::ParentDir));
-    (plain && roots.iter().any(|r| path_within(path, r, ci))) || {
-        let resolved = resolve_existing_prefix(path);
-        roots.iter().any(|r| path_within(&resolved, r, ci))
+    if plain && roots.iter().any(|r| path_within(path, r, ci)) {
+        return true;
     }
+    if windows {
+        let normalised = lexically_normalised(path);
+        if !roots.iter().any(|r| path_within(&normalised, r, ci)) {
+            return false;
+        }
+    }
+    let resolved = resolve_existing_prefix(path);
+    roots.iter().any(|r| path_within(&resolved, r, ci))
+}
+
+/// `path` with `.` components dropped and each `..` removing the preceding normal component,
+/// on the string only (a `..` at the root stays at the root, as the OS resolves it).
+fn lexically_normalised(path: &Path) -> PathBuf {
+    let mut out: Vec<Component> = Vec::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if matches!(out.last(), Some(Component::Normal(_))) {
+                    out.pop();
+                } else if out.is_empty() {
+                    out.push(component);
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    out.iter().collect()
 }
 
 /// Canonicalise the longest existing prefix of `path` and re-append the missing tail, so a
 /// not-yet-existing file is judged where it would live (symlinked ancestors resolved).
 fn resolve_existing_prefix(path: &Path) -> PathBuf {
+    #[cfg(test)]
+    RESOLVED.with(|r| r.borrow_mut().push(path.to_path_buf()));
     let mut tail: Vec<std::ffi::OsString> = Vec::new();
     let mut cur = path.to_path_buf();
     loop {
@@ -220,6 +259,8 @@ thread_local! {
     /// Every path handed to `platform_open` on this thread (test-only probe: proves which paths
     /// the guard actually opened, not just which it reported as denied).
     static OPENED: std::cell::RefCell<Vec<PathBuf>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// Every path the pre-open check resolved (FR-R-12 probe: resolving touches the path).
+    static RESOLVED: std::cell::RefCell<Vec<PathBuf>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
 fn platform_open(path: &Path) -> std::io::Result<(File, PathBuf)> {
@@ -257,6 +298,67 @@ mod tests {
 
     fn take_opened() -> Vec<PathBuf> {
         OPENED.with(|o| std::mem::take(&mut *o.borrow_mut()))
+    }
+
+    fn take_resolved() -> Vec<PathBuf> {
+        RESOLVED.with(|r| std::mem::take(&mut *r.borrow_mut()))
+    }
+
+    /// FR-R-12: under the Windows rules a path outside every root (as written, or after `..`
+    /// is applied to the string) is refused without being resolved; a path whose normalised
+    /// form is inside a root is still resolved (it may cross a junction). The Unix rules keep
+    /// resolving the existing prefix.
+    #[test]
+    fn windows_rules_never_resolve_a_path_outside_every_root() {
+        let root = PathBuf::from("/nhk-fr-r-12/root");
+        let roots = [root.clone()];
+        take_resolved();
+        for outside in [
+            "/nhk-fr-r-12/elsewhere/file.png",
+            "/nhk-fr-r-12/root/../elsewhere/file.png",
+            "/nhk-fr-r-12/root/./../../x",
+        ] {
+            assert!(
+                !within_roots_lexically(Path::new(outside), &roots, false, true),
+                "{outside}"
+            );
+            assert_eq!(
+                take_resolved(),
+                Vec::<PathBuf>::new(),
+                "{outside} was resolved"
+            );
+        }
+        // Plain and inside: admitted without resolving.
+        assert!(within_roots_lexically(
+            Path::new("/nhk-fr-r-12/root/a.png"),
+            &roots,
+            false,
+            true
+        ));
+        assert!(take_resolved().is_empty());
+        // `..` that stays inside: resolved (the junction/symlink check needs the real path).
+        let _ = within_roots_lexically(
+            Path::new("/nhk-fr-r-12/root/sub/../a.png"),
+            &roots,
+            false,
+            true,
+        );
+        assert_eq!(
+            take_resolved(),
+            [PathBuf::from("/nhk-fr-r-12/root/sub/../a.png")]
+        );
+        // Unix rules: an outside path is resolved (lstat/readlink only) before being refused.
+        assert!(!within_roots_lexically(
+            Path::new("/nhk-fr-r-12/elsewhere/x"),
+            &roots,
+            false,
+            false
+        ));
+        assert_eq!(take_resolved().len(), 1);
+        assert_eq!(
+            lexically_normalised(Path::new("/a/./b/../../../c")),
+            PathBuf::from("/c")
+        );
     }
 
     /// A fresh `<tmp>/nhk-fsguard-<pid>-<n>/{root,outside}` tree.

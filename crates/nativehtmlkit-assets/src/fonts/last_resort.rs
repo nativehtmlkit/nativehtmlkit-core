@@ -6,8 +6,8 @@
 //! list in both system and pinned-fonts-only modes, unless the runtime configuration's
 //! `last_resort_fallback` flag is off. It has no `font_id` and cannot be unregistered.
 //!
-//! OD-24 (the choice of this font) is recorded as pending owner approval in
-//! `assets/last-resort/PROVENANCE.md`; nothing here assumes it approved.
+//! OD-24 (the choice of this font) was approved by the project owner on 2026-11-15; the
+//! approval is recorded in `assets/last-resort/PROVENANCE.md`.
 
 use super::registry::{FontBlob, FontBlobId};
 use nativehtmlkit_engine_types::codes_generated::Code;

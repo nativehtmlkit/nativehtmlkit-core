@@ -35,7 +35,9 @@ pub struct LauncherWatchdog {
     /// The manifest's `shutdown_timeout_ms`.
     pub shutdown_timeout: std::time::Duration,
     /// Backend process (group leader on Linux), terminated best-effort before exiting.
-    pub backend_group: Option<u32>,
+    /// 0 = no backend, or the event loop has reaped it (FR-R-13: its PID, and so the
+    /// process-group id, may then belong to an unrelated process group).
+    pub backend_group: std::sync::Arc<std::sync::atomic::AtomicU32>,
 }
 
 /// Stable, non-secret namespace hash. This is not an authentication primitive.

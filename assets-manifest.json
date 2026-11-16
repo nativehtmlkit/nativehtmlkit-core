@@ -65,11 +65,6 @@
       "path": "crates/nativehtmlkit-assets/assets/last-resort/NotoSans-Regular.ttf",
       "sha256": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
       "size": 512672
-    },
-    {
-      "path": "crates/nativehtmlkit-host/assets/NotoSans-Regular.ttf",
-      "sha256": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
-      "size": 512672
     }
   ]
 }

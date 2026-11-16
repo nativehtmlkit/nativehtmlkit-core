@@ -34,10 +34,8 @@ the release build and a verified local stage. Native GUI qualification is separa
 
 [`protocol/README.md`](protocol/README.md) is the v1 contract: method/op matrix and JSON Schemas
 (parameter types generated from the Rust serde types; method list checked against the dispatch
-arms), a 338-case runtime golden (error codes, result member kinds, boolean values and array
-lengths; identical Linux/Windows results were last shown for 1.0.1 and are pending
-re-qualification for 1.0.2), the compatibility policy and an SDK authoring guide. Status: **locked release candidate (`1.0-rc`)**; the public
-stability declaration waits for the native gates listed in `protocol/CONFORMANCE-ROADMAP.md`.
+arms), a 342-case runtime golden (error codes, result member kinds, boolean values and array lengths; identical on Linux and Windows), the compatibility policy and an SDK authoring guide. Status: **public-stable (`1.0`) since host 1.0.3**;
+the qualifying native evidence is listed in `protocol/CONFORMANCE-ROADMAP.md` (gates C6, C8).
 Protocol v1 keeps its `UI4ME_*` launch variables and legacy markup/resource names;
 `nativehtmlkit-*` spellings are additive aliases.
 
@@ -70,6 +68,7 @@ logging only, not the protocol wire format. `NATIVEHTMLKIT_DIAGNOSTIC_SESSION_ID
 
 | Level | Adds |
 |---|---|
+| `off` | errors only, plus the backend's stdout/stderr lines (always relayed, since 1.0.3) |
 | `normal` | start/stop, warnings, errors, backend stdout/stderr lines |
 | `debug` | lifecycle phase transitions (`event:"lifecycle.phase"`, `from`, `to`), launcher-loss acknowledgement, stale decision replies, presentation timings |
 | `trace` | per request `event:"rpc.received"` (`method`, `id`, `connection`) and `event:"rpc.completed"` (`method`, `id`, `connection`, `duration_us`, `error_code` on failure); per host notification `event:"notify.sent"` (`method`; for `window.event`/`document.event` also the event `type` and `window_id`/`document_id`); per host request `event:"request.sent"` (`window.before_close`/`app.before_quit`, decision `id`) |
@@ -79,3 +78,9 @@ paths, URLs or the launch token. The stderr sink is bounded (128 records) and lo
 design, so under load records can be dropped; `host.diagnostics` → `logging` reports
 `sink_dropped_records` and `backend_omitted_records`. Never publish raw logs without
 review: backend stdout/stderr lines (all levels) may contain application data.
+
+`nativehtmlkit-host --version` prints `nativehtmlkit-host <version>` (unchanged);
+`nativehtmlkit-host --version --verbose` (since 1.0.3) prints one JSON object with the embedded
+source identity (`source_identity`, `source_commit`, `source_tree`, `source_dirty`, and for a
+source export `source_files_sha256`); `doctor` reports the same object as `build`. See
+`docs/BUILD-AND-RELEASE.md`.
