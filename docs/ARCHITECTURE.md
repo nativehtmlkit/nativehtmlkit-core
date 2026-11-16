@@ -16,7 +16,7 @@ flowchart LR
   H --> OS["Wayland / Win32<br/>windows, input, IME,<br/>clipboard, dialogs, AT-SPI / UIA"]
 ```
 
-- The **launcher** is whatever the user ran (`python app.py`, the CLI). It writes a manifest, starts
+- The **launcher** is whatever the user ran (`uv run app.py`, the CLI). It writes a manifest, starts
   the host, relays the host's stderr and returns its exit status. The SDKs re-run the user's script
   as the backend, which is why SDK entry points tell you to keep side effects after `start()`.
 - The **host** owns everything native: windows, the event loop, documents, rendering, input,
