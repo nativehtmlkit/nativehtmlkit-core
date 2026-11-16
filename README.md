@@ -4,6 +4,7 @@
 
 - Current shipped Core version: **1.0.3**, stable wire protocol **v1**.
 - Target desktops: **Linux KDE Wayland** and **Windows**. macOS is not currently a supported release target.
+- No JavaScript, no network, no browser engine: your backend process (Python, PowerShell, …) owns the logic and talks to the host over a private, authenticated local channel.
 - The UI libraries never import Core internals. Apps should normally use a language SDK or the CLI rather than speak the host protocol themselves.
 
 ## Where to begin
@@ -11,10 +12,13 @@
 | Goal | Read |
 |---|---|
 | Create an application | [Python SDK](https://github.com/nativehtmlkit/nativehtmlkit-python), [PowerShell SDK](https://github.com/nativehtmlkit/nativehtmlkit-powershell), or [CLI](https://github.com/nativehtmlkit/nativehtmlkit-cli) |
-| Understand the process and data flow | [Architecture](docs/ARCHITECTURE.md) |
-| Explore wire methods and compatibility | [Protocol](protocol/README.md) and [API ownership](docs/API.md) |
+| Know which HTML, CSS and form controls work | [HTML and CSS support](docs/guides/html-css-support.md) and the [generated profile](docs/reference/html-css-profile.md) |
+| Know which events your app receives | [Events](docs/guides/events.md) |
+| Write an SDK or another client | [Tutorial: first wire-v1 client](docs/tutorials/first-wire-client.md), [SDK authoring guide](protocol/SDK-AUTHORING.md), [examples](examples/README.md) |
+| Look up a method, op or error code | [Protocol reference](protocol/README.md), [document ops](protocol/reference/document-commands.md), [wire tables](protocol/reference/wire-tables.md) |
+| Understand the process, rendering and security model | [Architecture](docs/ARCHITECTURE.md) and [API surface](docs/API.md) |
 | Build or test the host | [Build & verification](docs/BUILD.md) |
-| Explore demos and capabilities | [Public documentation](https://github.com/nativehtmlkit/nativehtmlkit) |
+| Everything, by kind of document | [Documentation index](docs/README.md) |
 
 ## Known limitation
 
