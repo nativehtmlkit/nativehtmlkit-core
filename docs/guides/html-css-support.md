@@ -244,7 +244,7 @@ excluded; elements without a role of their own (a plain `<div>`, an unnamed `<se
 the tool for automated accessibility checks.
 
 Screen-reader behaviour must be qualified on the real desktop. Known limitation in 1.0.3:
-NHK-CROSS-0010 (Linux, Orca does not announce a collapsed drop-down's value change by arrow key; the
+on Linux, Orca does not announce a collapsed drop-down's value change by arrow key (the
 value does change).
 
 ## Untrusted text

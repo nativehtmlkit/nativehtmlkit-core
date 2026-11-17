@@ -126,7 +126,7 @@ ARIA, names, states, relations, table structure, bounds, actions) and publishes 
 technology actions (focus, blur, click/default action, expand, collapse, increment, decrement,
 set value) come back as input and go through the same dispatch as the keyboard and pointer. `get_accessibility_tree` returns the same
 tree over the protocol, so accessibility can be tested headlessly; screen-reader journeys still need
-native qualification (see the known limitation NHK-CROSS-0010 in the [README](../README.md)).
+native qualification (see the known Orca drop-down limitation in the [README](../README.md)).
 
 ## Live bitmaps
 

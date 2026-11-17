@@ -22,7 +22,7 @@
 
 ## Known limitation
 
-The Linux Orca select-value announcement issue is tracked as NHK-CROSS-0010. It is not described as fixed by this documentation update. Native accessibility and scaling must be requalified for the exact host binary and OS.
+On Linux, Orca does not announce the value change of a collapsed `<select>` drop-down changed with the arrow keys (the value itself does change). Native accessibility and scaling must be requalified for the exact host binary and OS.
 
 ## Project navigation
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local Core source gate (Linux). Mirrors the original UI4ME tools/release/check_linux.sh.
-# Native KDE Wayland GUI qualification is a separate requirement (see docs/BUILD-AND-RELEASE.md).
+# Native KDE Wayland GUI qualification is a separate requirement (see docs/BUILD.md).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # If fonts were not restored yet, provide the original source archive.

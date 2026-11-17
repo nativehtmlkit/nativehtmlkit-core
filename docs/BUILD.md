@@ -6,10 +6,18 @@ Use the exact pinned Rust toolchain and dependency/patch tree. The public source
 rustup show
 cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
-# Also run the repository's specific source-asset and release scripts described under scripts/.
 ```
 
-These commands do not replace native KDE Wayland or Windows tests. A qualified release should carry source commit and binary SHA-256 and run the central `qualification/native-journeys/` suite using the exact packaged host on each target platform. Do not present source-only unit results as GUI acceptance.
+Scripts in `scripts/`:
+
+- `build-local.sh` / `build-local.ps1` — local source gate on Linux / Windows (tests, clippy, architecture check).
+- `check-architecture.py` — static workspace boundary and release-policy check (no Rust toolchain needed).
+- `generate-protocol-contract.py` — regenerates or `--check`s the `protocol/v1/` matrix and schemas from the Rust source.
+- `restore-source-assets.py` — restores the licensed test and fallback fonts from a locally owned source archive.
+- `release-local.py` — stages a locally built host and protocol contract into a verified archive.
+- `docs/check-docs.py`, `docs/generate-wire-tables.py`, `docs/generate-html-css-reference.py` — documentation checks and generated references (below).
+
+These commands do not replace native KDE Wayland or Windows tests. A qualified release should carry source commit and binary SHA-256 and be exercised with native desktop journeys (input, IME, scaling, screen readers), which the maintainers run on lab desktops with the exact packaged host on each target platform. Do not present source-only unit results as GUI acceptance.
 
 ## Documentation checks
 

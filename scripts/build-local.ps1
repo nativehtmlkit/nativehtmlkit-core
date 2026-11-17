@@ -1,5 +1,5 @@
 # Local Core source gate (Windows). Mirrors the original UI4ME tools/release/build_windows.ps1 source checks.
-# Interactive-desktop GUI qualification is a separate requirement (see docs/BUILD-AND-RELEASE.md).
+# Interactive-desktop GUI qualification is a separate requirement (see docs/BUILD.md).
 $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
 function Step([scriptblock]$b) { & $b; if ($LASTEXITCODE) { exit $LASTEXITCODE } }

@@ -369,4 +369,4 @@ counters. Record shapes may gain members: parse them defensively.
 See [`COMPATIBILITY.md`](COMPATIBILITY.md) for the v1 stability rules and
 [`CONFORMANCE-ROADMAP.md`](CONFORMANCE-ROADMAP.md) for the qualification evidence. Native capabilities
 vary by OS and session; Core 1.0.3 has recorded accessibility and platform qualification limits
-(for example NHK-CROSS-0010) that the stable protocol declaration does not hide.
+(for example, Orca on Linux does not announce a collapsed drop-down's value change) that the stable protocol declaration does not hide.

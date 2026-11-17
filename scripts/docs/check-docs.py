@@ -47,8 +47,6 @@ def broken_links() -> list[str]:
     files = [ROOT / "README.md", *ROOT.glob("docs/**/*.md"), *ROOT.glob("protocol/*.md"),
              *ROOT.glob("protocol/reference/*.md"), *ROOT.glob("examples/**/*.md")]
     for file in files:
-        if "Contract-Review" in file.parts:
-            continue
         for target in re.findall(r"\]\(([^)\s]+)\)", file.read_text(encoding="utf-8")):
             if re.match(r"^[a-z]+:", target) or target.startswith("#"):
                 continue
