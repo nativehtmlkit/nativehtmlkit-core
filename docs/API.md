@@ -3,7 +3,7 @@
 NativeHTMLKit Core has exactly one public programming interface: the **wire-v1 host protocol**
 spoken between `nativehtmlkit-host` and a backend process. Everything else in this repository — the
 Rust crates, their modules and types — is private implementation and may change in any release.
-Consumers (SDKs, the CLI, independent clients) must not link to or depend on Core's Rust code.
+Consumers (SDKs and other independent clients) must not link to or depend on Core's Rust code.
 
 ## Public surfaces
 
@@ -32,9 +32,8 @@ Consumers (SDKs, the CLI, independent clients) must not link to or depend on Cor
 
 ## Choosing an entry point
 
-- **Building an app:** use the [Python SDK](https://github.com/nativehtmlkit/nativehtmlkit-python),
-  the [PowerShell SDK](https://github.com/nativehtmlkit/nativehtmlkit-powershell) or the
-  [CLI](https://github.com/nativehtmlkit/nativehtmlkit-cli). They implement the protocol, pin and
+- **Building an app:** use the [Python SDK](https://github.com/nativehtmlkit/nativehtmlkit-python)
+  or the [PowerShell SDK](https://github.com/nativehtmlkit/nativehtmlkit-powershell). They implement the protocol, pin and
   verify the host binary and bind its lifetime correctly.
 - **Writing a new SDK or client:** start with the
   [tutorial](tutorials/first-wire-client.md), then follow the

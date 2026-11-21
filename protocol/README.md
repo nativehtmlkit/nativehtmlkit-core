@@ -4,9 +4,8 @@
 ([`COMPATIBILITY.md`](COMPATIBILITY.md)); anything else needs protocol version 2.
 
 This page is for **authors of SDKs and other independent clients**. Application developers should
-use the [Python SDK](https://github.com/nativehtmlkit/nativehtmlkit-python), the
-[PowerShell SDK](https://github.com/nativehtmlkit/nativehtmlkit-powershell) or the
-[CLI](https://github.com/nativehtmlkit/nativehtmlkit-cli); UI libraries never speak the protocol.
+use the [Python SDK](https://github.com/nativehtmlkit/nativehtmlkit-python)
+or the [PowerShell SDK](https://github.com/nativehtmlkit/nativehtmlkit-powershell).
 
 | You want to… | Read |
 |---|---|
@@ -35,7 +34,7 @@ compare string or number values, nested contents or notification payloads beyond
 
 ## 1. Launch and transport
 
-A launcher (an SDK, the CLI or your own tool) writes an application manifest and runs:
+A launcher (an SDK or your own tool) writes an application manifest and runs:
 
 ```text
 nativehtmlkit-host run --app <app.toml> [--headless] [--allow-unsupervised]
@@ -97,7 +96,7 @@ On Linux the host re-executes itself under a transient `systemd --user` unit
 (`KillMode=control-group`) unless it is headless or `--allow-unsupervised`; the backend gets
 `PR_SET_PDEATHSIG`. On Windows the backend runs in a kill-on-close Job Object. A launcher that must
 not be outlived by the host should bind the host to itself (Linux `PR_SET_PDEATHSIG`, Windows Job
-Object with kill-on-close), as the SDKs and the CLI do. On Linux, when the launcher exits, the host
+Object with kill-on-close), as the SDKs do. On Linux, when the launcher exits, the host
 begins a normal bounded shutdown; if its event loop has not started that shutdown within
 `max(shutdown_timeout_ms + 1 s, 2 s)`, a watchdog kills the backend process group and exits with
 status 1. `host.capabilities.containment` describes the mode in use.

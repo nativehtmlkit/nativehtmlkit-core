@@ -106,5 +106,5 @@ compact, verified implementation of the steps below.
    focus, resize, close decisions, file dialogs, clipboard). Headless mode proves the protocol and
    document state, not native behaviour.
 
-The Rust CLI (`nativehtmlkit-cli`), the Python SDK and the PowerShell SDK are independent v1 clients
-qualified against the same host and are useful references.
+The Python SDK and the PowerShell SDK are independent v1 clients qualified against the same host
+and are useful references.

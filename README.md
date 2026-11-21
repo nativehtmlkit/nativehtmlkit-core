@@ -1,17 +1,17 @@
 # NativeHTMLKit Core
 
-**The native Rust host for browserless HTML/CSS desktop windows.** Core owns the renderer, native windows, input, accessibility plumbing, desktop services and the host protocol. SDKs and the CLI are separate clients.
+**The native Rust host for browserless HTML/CSS desktop windows.** Core owns the renderer, native windows, input, accessibility plumbing, desktop services and the host protocol. The Python and PowerShell SDKs are separate clients.
 
 - Current shipped Core version: **1.0.3**, stable wire protocol **v1**.
 - Target desktops: **Linux KDE Wayland** and **Windows**. macOS is not currently a supported release target.
 - No JavaScript, no network, no browser engine: your backend process (Python, PowerShell, …) owns the logic and talks to the host over a private, authenticated local channel.
-- The UI libraries never import Core internals. Apps should normally use a language SDK or the CLI rather than speak the host protocol themselves.
+- Clients never import Core internals. Apps should normally use a language SDK rather than speak the host protocol themselves.
 
 ## Where to begin
 
 | Goal | Read |
 |---|---|
-| Create an application | [Python SDK](https://github.com/nativehtmlkit/nativehtmlkit-python), [PowerShell SDK](https://github.com/nativehtmlkit/nativehtmlkit-powershell), or [CLI](https://github.com/nativehtmlkit/nativehtmlkit-cli) |
+| Create an application | [Python SDK](https://github.com/nativehtmlkit/nativehtmlkit-python) or [PowerShell SDK](https://github.com/nativehtmlkit/nativehtmlkit-powershell) |
 | Know which HTML, CSS and form controls work | [HTML and CSS support](docs/guides/html-css-support.md) and the [generated profile](docs/reference/html-css-profile.md) |
 | Know which events your app receives | [Events](docs/guides/events.md) |
 | Write an SDK or another client | [Tutorial: first wire-v1 client](docs/tutorials/first-wire-client.md), [SDK authoring guide](protocol/SDK-AUTHORING.md), [examples](examples/README.md) |
